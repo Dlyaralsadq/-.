@@ -27,3 +27,5 @@ coverage/
 # OS/editor
 .DS_Store
 *.pem
+# TypeScript
+*.tsbuildinfo
