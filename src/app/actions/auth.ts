@@ -14,9 +14,9 @@ export async function loginAction(formData: FormData) {
     cookieStore.set(SESSION_COOKIE_NAME(), result.session, {
       httpOnly: true,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
     });
-    return { success: true };
+    return { success: true, role: result.role };
   }
 
   return { success: false, error: result.error };

@@ -7,25 +7,18 @@ import Header from "./Header";
 interface DashboardLayoutProps {
   locale: string;
   userName?: string;
+  role?: string;
   children: React.ReactNode;
 }
 
-export default function DashboardLayout({ locale, userName, children }: DashboardLayoutProps) {
+export default function DashboardLayout({ locale, userName, role = "admin", children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      <Sidebar
-        locale={locale}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      <Sidebar locale={locale} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header
-          locale={locale}
-          userName={userName}
-          onMenuToggle={() => setSidebarOpen(true)}
-        />
+        <Header locale={locale} userName={userName} onMenuToggle={() => setSidebarOpen(true)} role={role} />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>

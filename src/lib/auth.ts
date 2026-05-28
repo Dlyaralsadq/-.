@@ -22,8 +22,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 export async function createSession(userId: string, username: string, name: string, role: string): Promise<string> {
   const sessionData = JSON.stringify({ userId, username, name, role, createdAt: Date.now() });
-  const encoded = Buffer.from(sessionData).toString("base64");
-  return encoded;
+  return Buffer.from(sessionData).toString("base64");
 }
 
 export async function getSession(): Promise<Session | null> {
@@ -42,25 +41,22 @@ export async function getSession(): Promise<Session | null> {
 
 export async function requireAuth(locale: string = "ar"): Promise<Session> {
   const session = await getSession();
-  if (!session) {
-    redirect(`/${locale}/login`);
-  }
+  if (!session) redirect(`/${locale}/login`);
   return session;
 }
 
-export async function login(username: string, password: string): Promise<{ success: boolean; error?: string; session?: string }> {
+export async function login(username: string, password: string): Promise<{
+  success: boolean; error?: string; session?: string; role?: string;
+}> {
   const user = await prisma.user.findUnique({ where: { username } });
-  if (!user) {
-    return { success: false, error: "invalid_credentials" };
-  }
+  if (!user) return { success: false, error: "invalid_credentials" };
+  if (!user.isActive) return { success: false, error: "account_inactive" };
 
   const valid = await verifyPassword(password, user.password);
-  if (!valid) {
-    return { success: false, error: "invalid_credentials" };
-  }
+  if (!valid) return { success: false, error: "invalid_credentials" };
 
   const sessionToken = await createSession(user.id, user.username, user.name, user.role);
-  return { success: true, session: sessionToken };
+  return { success: true, session: sessionToken, role: user.role };
 }
 
 export function SESSION_COOKIE_NAME(): string {
