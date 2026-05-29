@@ -94,12 +94,14 @@ model Appointment {
   duration          Int      @default(30)
   type              String   @default("consultation")
   status            String   @default("scheduled")
-  arrivalStatus     String   @default("pending")  // pending | arrived | with_doctor | done
+  arrivalStatus     String   @default("pending")  // pending | arrived | called | with_doctor | done
   queueNumber       Int?
+  isPaid            Boolean  @default(false)
   reason            String?
   notes             String?
   diagnosis         String?
   prescription      String?
+  completedAt       DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

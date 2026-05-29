@@ -1,12 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Stethoscope, Users, ClipboardList, UserCheck,
-  UserX, Plus, Key, Trash2, CheckCircle, XCircle,
-  ShieldCheck, Activity, TrendingUp, AlertCircle
+  Stethoscope, ClipboardList, ShieldCheck, Plus, Key, Trash2,
+  CheckCircle, XCircle, AlertCircle, UserCheck, UserX, Activity
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
@@ -18,425 +16,335 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   createDoctorWithAccount, createAccountForDoctor,
   resetDoctorPassword, toggleDoctorStatus, deleteDoctorAndAccount,
-  updateDoctorAndAccount,
+  createSecretaryAccount,
 } from "@/app/actions/admin";
 
 interface Specialty { id: string; name: string; nameAr: string; }
 interface Doctor {
-  id: string; name: string; nameAr: string;
-  phone: string | null; email: string | null;
-  specialtyId: string;
-  specialty: { name: string; nameAr: string };
-  licenseNumber: string | null;
-  experienceYears: number | null;
-  consultationFee: number | null;
-  workingDays: string | null;
-  workingHoursStart: string | null;
-  workingHoursEnd: string | null;
-  isActive: boolean;
-  userId: string | null;
-  user: { id: string; username: string; isActive: boolean; createdAt: Date } | null;
+  id: string; name: string; nameAr: string; phone: string | null;
+  specialtyId: string; specialty: { name: string; nameAr: string };
+  licenseNumber: string | null; experienceYears: number | null;
+  consultationFee: number | null; workingDays: string | null;
+  workingHoursStart: string | null; workingHoursEnd: string | null;
+  isActive: boolean; userId: string | null;
+  user: { id: string; username: string; isActive: boolean } | null;
   _count: { appointments: number; patients: number };
 }
+interface Stats { totalDoctors: number; activeDoctors: number; totalSpecialties: number; totalPatients: number; doctorsWithAccounts: number; }
 
-interface Stats {
-  totalDoctors: number; activeDoctors: number;
-  totalSpecialties: number; totalPatients: number; doctorsWithAccounts: number;
-}
+const dayOptions = [
+  { value: "sat-thu", label_ar: "السبت - الخميس", label_en: "Sat - Thu" },
+  { value: "sun-thu", label_ar: "الأحد - الخميس", label_en: "Sun - Thu" },
+  { value: "sat-wed", label_ar: "السبت - الأربعاء", label_en: "Sat - Wed" },
+  { value: "mon-fri", label_ar: "الاثنين - الجمعة", label_en: "Mon - Fri" },
+];
 
-export default function AdminDashboardClient({
-  stats, doctors, specialties, locale,
-}: {
+export default function AdminDashboardClient({ stats, doctors, specialties, locale }: {
   stats: Stats; doctors: Doctor[]; specialties: Specialty[]; locale: string;
 }) {
-  const t = useTranslations("admin");
-  const tc = useTranslations("common");
-  const td = useTranslations("doctors");
   const router = useRouter();
+  const ar = locale === "ar";
 
-  const [addDoctorOpen, setAddDoctorOpen] = useState(false);
-  const [createAccountOpen, setCreateAccountOpen] = useState(false);
-  const [resetPwdOpen, setResetPwdOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [accOpen, setAccOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [secOpen, setSecOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [successMsg, setSuccessMsg] = useState("");
+  const [toast, setToast] = useState("");
 
-  const specialtyOptions = specialties.map((s) => ({
-    value: s.id,
-    label: locale === "ar" ? s.nameAr : s.name,
-  }));
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
 
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(""), 4000);
+  const act = async (fn: () => Promise<{ success: boolean; error?: string }>) => {
+    setLoading(true); setErrors({});
+    const r = await fn();
+    setLoading(false);
+    if (r.success) { router.refresh(); return true; }
+    if (r.error === "username_taken") setErrors({ username: ar ? "اسم المستخدم مستخدم بالفعل" : "Username taken" });
+    return false;
   };
 
-  // ── Add Doctor + Account ──
-  const handleAddDoctor = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true); setErrors({});
     const fd = new FormData(e.currentTarget);
-    const result = await createDoctorWithAccount({
-      name: fd.get("name") as string,
-      nameAr: fd.get("nameAr") as string,
-      phone: fd.get("phone") as string || undefined,
-      email: fd.get("email") as string || undefined,
+    const ok = await act(() => createDoctorWithAccount({
+      name: fd.get("name") as string, nameAr: fd.get("nameAr") as string,
+      phone: fd.get("phone") as string || undefined, email: fd.get("email") as string || undefined,
       specialtyId: fd.get("specialtyId") as string,
       licenseNumber: fd.get("licenseNumber") as string || undefined,
-      qualification: fd.get("qualification") as string || undefined,
-      experienceYears: fd.get("experienceYears") ? parseInt(fd.get("experienceYears") as string) : undefined,
-      consultationFee: fd.get("consultationFee") ? parseFloat(fd.get("consultationFee") as string) : undefined,
-      workingDays: fd.get("workingDays") as string || undefined,
-      workingHoursStart: fd.get("workingHoursStart") as string || undefined,
-      workingHoursEnd: fd.get("workingHoursEnd") as string || undefined,
+      experienceYears: fd.get("exp") ? parseInt(fd.get("exp") as string) : undefined,
+      consultationFee: fd.get("fee") ? parseFloat(fd.get("fee") as string) : undefined,
+      workingDays: fd.get("days") as string || undefined,
+      workingHoursStart: fd.get("from") as string || undefined,
+      workingHoursEnd: fd.get("to") as string || undefined,
       username: fd.get("username") as string,
       password: fd.get("password") as string,
-    });
-    setLoading(false);
-    if (result.success) {
-      setAddDoctorOpen(false);
-      showSuccess(t("doctorAddedWithAccount"));
-      router.refresh();
-    } else {
-      setErrors({ username: result.error === "username_taken" ? (locale === "ar" ? "اسم المستخدم مستخدم بالفعل" : "Username already taken") : tc("error") });
-    }
+    }));
+    if (ok) { setAddOpen(false); showToast(ar ? "تم إضافة الطبيب وحسابه بنجاح" : "Doctor and account created"); }
   };
 
-  // ── Create Account for existing doctor ──
-  const handleCreateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateAcc = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedDoctor) return;
-    setLoading(true); setErrors({});
+    if (!selected) return;
     const fd = new FormData(e.currentTarget);
-    const result = await createAccountForDoctor(
-      selectedDoctor.id,
-      fd.get("username") as string,
-      fd.get("password") as string,
-    );
-    setLoading(false);
-    if (result.success) {
-      setCreateAccountOpen(false);
-      showSuccess(locale === "ar" ? "تم إنشاء الحساب بنجاح" : "Account created successfully");
-      router.refresh();
-    } else {
-      setErrors({ username: result.error === "username_taken" ? (locale === "ar" ? "اسم المستخدم مستخدم" : "Username taken") : tc("error") });
-    }
+    const ok = await act(() => createAccountForDoctor(selected.id, fd.get("username") as string, fd.get("password") as string));
+    if (ok) { setAccOpen(false); showToast(ar ? "تم إنشاء الحساب" : "Account created"); }
   };
 
-  // ── Reset Password ──
-  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handlePwd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedDoctor) return;
-    setLoading(true);
+    if (!selected) return;
     const fd = new FormData(e.currentTarget);
-    await resetDoctorPassword(selectedDoctor.id, fd.get("password") as string);
-    setLoading(false);
-    setResetPwdOpen(false);
-    showSuccess(locale === "ar" ? "تم تغيير كلمة المرور" : "Password updated");
+    const ok = await act(() => resetDoctorPassword(selected.id, fd.get("password") as string));
+    if (ok) { setPwdOpen(false); showToast(ar ? "تم تغيير كلمة المرور" : "Password updated"); }
   };
 
-  // ── Toggle Status ──
-  const handleToggleStatus = async (doctor: Doctor) => {
-    await toggleDoctorStatus(doctor.id, !doctor.isActive);
-    router.refresh();
+  const handleSec = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selected) return;
+    const fd = new FormData(e.currentTarget);
+    const ok = await act(() => createSecretaryAccount(selected.id, fd.get("username") as string, fd.get("password") as string, fd.get("name") as string));
+    if (ok) { setSecOpen(false); showToast(ar ? "تم إنشاء حساب السكرتير" : "Secretary account created"); }
   };
 
-  // ── Delete ──
-  const handleDelete = async () => {
-    if (!deleteConfirm) return;
-    setLoading(true);
-    await deleteDoctorAndAccount(deleteConfirm);
-    setDeleteConfirm(null);
-    setLoading(false);
-    router.refresh();
-  };
-
-  const dayLabels: Record<string, string> = {
-    "sat-thu": locale === "ar" ? "السبت - الخميس" : "Sat - Thu",
-    "sun-thu": locale === "ar" ? "الأحد - الخميس" : "Sun - Thu",
-    "sat-wed": locale === "ar" ? "السبت - الأربعاء" : "Sat - Wed",
-    "mon-fri": locale === "ar" ? "الاثنين - الجمعة" : "Mon - Fri",
-  };
-
-  const dayOptions = Object.entries(dayLabels).map(([value, label]) => ({ value, label }));
+  const specOpts = specialties.map(s => ({ value: s.id, label: ar ? s.nameAr : s.name }));
+  const daysOpts = dayOptions.map(d => ({ value: d.value, label: ar ? d.label_ar : d.label_en }));
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Success toast */}
-      {successMsg && (
-        <div className="fixed top-4 end-4 z-50 flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-medium text-white shadow-lg animate-fade-in">
-          <CheckCircle className="h-4 w-4" />
-          {successMsg}
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 end-4 z-50 flex items-center gap-2 rounded-xl bg-emerald-600 border border-emerald-500 px-4 py-3 text-sm font-medium text-white shadow-2xl animate-slide-in">
+          <CheckCircle className="h-4 w-4" />{toast}
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("title")}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t("subtitle")}</p>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-blue-400" />
+            {ar ? "لوحة الإدارة" : "Admin Panel"}
+          </h1>
+          <p className="text-sm text-slate-500 mt-0.5">{ar ? "إدارة الأطباء والحسابات" : "Manage doctors and accounts"}</p>
         </div>
-        <Button onClick={() => setAddDoctorOpen(true)} size="lg">
-          <Plus className="h-5 w-5" />
-          {t("addDoctor")}
+        <Button onClick={() => setAddOpen(true)}>
+          <Plus className="h-4 w-4" />{ar ? "إضافة طبيب" : "Add Doctor"}
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: t("totalDoctors"), value: stats.totalDoctors, icon: Stethoscope, color: "blue" },
-          { label: t("activeDoctors"), value: stats.activeDoctors, icon: Activity, color: "green" },
-          { label: t("totalSpecialties"), value: stats.totalSpecialties, icon: ClipboardList, color: "purple" },
-          { label: t("doctorAccounts"), value: stats.doctorsWithAccounts, icon: ShieldCheck, color: "orange" },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="card p-5">
-            <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-${color}-50`}>
-              <Icon className={`h-5 w-5 text-${color}-600`} />
+          { n: stats.totalDoctors, label: ar ? "الأطباء" : "Doctors", icon: Stethoscope, color: "indigo" },
+          { n: stats.activeDoctors, label: ar ? "نشطون" : "Active", icon: Activity, color: "emerald" },
+          { n: stats.totalSpecialties, label: ar ? "التخصصات" : "Specialties", icon: ClipboardList, color: "violet" },
+          { n: stats.doctorsWithAccounts, label: ar ? "لديهم حسابات" : "With Accounts", icon: ShieldCheck, color: "blue" },
+        ].map(({ n, label, icon: Icon, color }) => (
+          <div key={label} className="card p-4">
+            <div className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-${color}-500/10`}>
+              <Icon className={`h-4.5 w-4.5 text-${color}-400`} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className="text-sm text-gray-500 mt-1">{label}</p>
+            <p className="text-2xl font-black text-white">{n}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{label}</p>
           </div>
         ))}
       </div>
 
-      {/* Doctors Table */}
+      {/* Doctors table */}
       <div className="card overflow-hidden">
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-            <Stethoscope className="h-5 w-5 text-blue-600" />
-            {t("doctorsList")}
-          </h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            {doctors.length} {locale === "ar" ? "طبيب" : "doctors"}
-          </span>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2536]">
+          <h2 className="text-sm font-semibold text-white">{ar ? "الأطباء المسجلون" : "Registered Doctors"}</h2>
+          <span className="text-xs text-slate-500">{doctors.length} {ar ? "طبيب" : "doctors"}</span>
         </div>
-
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
-                <th>{td("fullName")}</th>
-                <th>{td("specialty")}</th>
-                <th>{tc("phone")}</th>
-                <th>{locale === "ar" ? "المواعيد / المرضى" : "Appts / Patients"}</th>
-                <th>{locale === "ar" ? "حساب النظام" : "System Account"}</th>
-                <th>{tc("status")}</th>
-                <th className="text-center">{tc("actions")}</th>
+                <th>{ar ? "الطبيب" : "Doctor"}</th>
+                <th>{ar ? "التخصص" : "Specialty"}</th>
+                <th>{ar ? "الهاتف" : "Phone"}</th>
+                <th>{ar ? "المواعيد/المرضى" : "Appts/Patients"}</th>
+                <th>{ar ? "حساب النظام" : "Account"}</th>
+                <th>{ar ? "الحالة" : "Status"}</th>
+                <th className="text-center">{ar ? "إجراءات" : "Actions"}</th>
               </tr>
             </thead>
             <tbody>
               {doctors.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
-                    <Stethoscope className="mx-auto h-10 w-10 mb-3 opacity-20" />
-                    <p>{tc("noData")}</p>
+                <tr><td colSpan={7} className="py-12 text-center text-slate-600">{ar ? "لا يوجد أطباء" : "No doctors"}</td></tr>
+              ) : doctors.map(doc => (
+                <tr key={doc.id}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600/20 border border-indigo-500/20 text-indigo-300 font-bold text-sm">
+                        {doc.name[0]}
+                      </div>
+                      <div>
+                        <p className="font-medium text-white text-sm">{ar ? doc.nameAr : doc.name}</p>
+                        <p className="text-xs text-slate-600">{ar ? doc.name : doc.nameAr}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-xs text-indigo-300">
+                      {ar ? doc.specialty.nameAr : doc.specialty.name}
+                    </span>
+                  </td>
+                  <td className="text-sm text-slate-400">{doc.phone ?? "—"}</td>
+                  <td className="text-sm text-slate-400">
+                    <span className="font-semibold text-white">{doc._count.appointments}</span>
+                    <span className="text-slate-600 mx-1">/</span>
+                    <span>{doc._count.patients}</span>
+                  </td>
+                  <td>
+                    {doc.user ? (
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                          <code className="text-xs text-slate-300 font-mono">@{doc.user.username}</code>
+                        </div>
+                        <span className={`text-xs ${doc.user.isActive ? "text-emerald-400" : "text-red-400"}`}>
+                          {doc.user.isActive ? (ar ? "نشط" : "Active") : (ar ? "معطل" : "Disabled")}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs text-amber-400">
+                        <AlertCircle className="h-3.5 w-3.5" />{ar ? "لا حساب" : "No account"}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <Badge variant={doc.isActive ? "success" : "default"}>
+                      {doc.isActive ? (ar ? "نشط" : "Active") : (ar ? "معطل" : "Inactive")}
+                    </Badge>
+                  </td>
+                  <td>
+                    <div className="flex items-center justify-center gap-1">
+                      {!doc.user ? (
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-blue-400 hover:bg-blue-500/10 gap-1"
+                          onClick={() => { setSelected(doc); setAccOpen(true); }}>
+                          <ShieldCheck className="h-3.5 w-3.5" />{ar ? "حساب" : "Account"}
+                        </Button>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-amber-400 hover:bg-amber-500/10"
+                            title={ar ? "تغيير كلمة المرور" : "Reset password"}
+                            onClick={() => { setSelected(doc); setPwdOpen(true); }}>
+                            <Key className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-violet-400 hover:bg-violet-500/10 gap-1"
+                            onClick={() => { setSelected(doc); setSecOpen(true); }}>
+                            <ClipboardList className="h-3.5 w-3.5" />{ar ? "سكرتير" : "Secretary"}
+                          </Button>
+                        </>
+                      )}
+                      <Button variant="ghost" size="sm" className={`h-7 w-7 p-0 ${doc.isActive ? "text-orange-400 hover:bg-orange-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}
+                        onClick={async () => { await toggleDoctorStatus(doc.id, !doc.isActive); router.refresh(); }}>
+                        {doc.isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:bg-red-500/10"
+                        onClick={() => setDeleteId(doc.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                doctors.map((doc) => (
-                  <tr key={doc.id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-sm">
-                          {doc.name[0]}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{locale === "ar" ? doc.nameAr : doc.name}</p>
-                          <p className="text-xs text-gray-400">{locale === "ar" ? doc.name : doc.nameAr}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                        {locale === "ar" ? doc.specialty.nameAr : doc.specialty.name}
-                      </span>
-                    </td>
-                    <td className="text-sm text-gray-600">{doc.phone ?? "—"}</td>
-                    <td>
-                      <span className="text-sm font-semibold text-gray-700">
-                        {doc._count.appointments}
-                      </span>
-                      <span className="mx-1 text-gray-300">/</span>
-                      <span className="text-sm text-gray-500">{doc._count.patients}</span>
-                    </td>
-                    <td>
-                      {doc.user ? (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                            <span className="text-xs font-mono font-semibold text-gray-700">@{doc.user.username}</span>
-                          </div>
-                          <Badge variant={doc.user.isActive ? "success" : "danger"} className="text-xs w-fit">
-                            {doc.user.isActive ? tc("active") : tc("inactive")}
-                          </Badge>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-orange-500">
-                          <AlertCircle className="h-4 w-4" />
-                          <span className="text-xs font-medium">{t("noAccount")}</span>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <Badge variant={doc.isActive ? "success" : "default"}>
-                        {doc.isActive ? tc("active") : tc("inactive")}
-                      </Badge>
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-center gap-1">
-                        {/* Create / manage account */}
-                        {!doc.user ? (
-                          <Button
-                            variant="ghost" size="sm"
-                            className="h-8 px-2 text-xs text-blue-600 hover:bg-blue-50 gap-1"
-                            onClick={() => { setSelectedDoctor(doc); setCreateAccountOpen(true); }}
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            {t("createAccount")}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost" size="sm"
-                            className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50"
-                            title={t("resetPassword")}
-                            onClick={() => { setSelectedDoctor(doc); setResetPwdOpen(true); }}
-                          >
-                            <Key className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {/* Toggle active */}
-                        <Button
-                          variant="ghost" size="sm"
-                          className={`h-8 w-8 p-0 ${doc.isActive ? "text-orange-500 hover:bg-orange-50" : "text-green-600 hover:bg-green-50"}`}
-                          title={doc.isActive ? t("deactivate") : t("activate")}
-                          onClick={() => handleToggleStatus(doc)}
-                        >
-                          {doc.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                        </Button>
-                        {/* Delete */}
-                        <Button
-                          variant="ghost" size="sm"
-                          className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                          onClick={() => setDeleteConfirm(doc.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ── Modal: Add Doctor + Account ── */}
-      <Modal
-        isOpen={addDoctorOpen}
-        onClose={() => { setAddDoctorOpen(false); setErrors({}); }}
-        title={t("addDoctor")}
-        size="xl"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => { setAddDoctorOpen(false); setErrors({}); }} disabled={loading}>{tc("cancel")}</Button>
-            <Button type="submit" form="add-doctor-form" loading={loading}>{tc("save")}</Button>
-          </>
-        }
-      >
-        <form id="add-doctor-form" onSubmit={handleAddDoctor} className="space-y-5">
-          {/* Section: Doctor Info */}
-          <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
-            <p className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
-              <Stethoscope className="h-4 w-4" />
-              {locale === "ar" ? "بيانات الطبيب" : "Doctor Information"}
+      {/* Add Doctor Modal */}
+      <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); setErrors({}); }}
+        title={ar ? "إضافة طبيب جديد" : "Add New Doctor"} size="xl"
+        footer={<>
+          <Button variant="secondary" onClick={() => setAddOpen(false)} disabled={loading}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="submit" form="add-form" loading={loading}>{ar ? "إضافة" : "Add"}</Button>
+        </>}>
+        <form id="add-form" onSubmit={handleAdd} className="space-y-4">
+          <div className="rounded-xl bg-indigo-500/8 border border-indigo-500/20 p-4 space-y-3">
+            <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Stethoscope className="h-3.5 w-3.5" />{ar ? "بيانات الطبيب" : "Doctor Info"}
             </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Input name="nameAr" label={locale === "ar" ? "الاسم بالعربية" : "الاسم بالعربية"} required placeholder="د. محمد الأحمدي" />
-              <Input name="name" label={locale === "ar" ? "الاسم بالإنجليزية" : "Full Name"} required placeholder="Dr. Mohammed Al-Ahmadi" />
-              <Select name="specialtyId" label={td("specialty")} options={specialtyOptions} placeholder={locale === "ar" ? "اختر التخصص" : "Select specialty"} required error={errors.specialtyId} />
-              <Input name="phone" type="tel" label={tc("phone")} placeholder="+966 5x xxx xxxx" />
-              <Input name="email" type="email" label={tc("email")} placeholder="doctor@clinic.com" />
-              <Input name="licenseNumber" label={td("licenseNumber")} />
-              <Input name="experienceYears" type="number" min="0" label={td("experience")} />
-              <Input name="consultationFee" type="number" min="0" label={td("consultationFee")} />
-              <Select name="workingDays" label={td("workingDays")} options={dayOptions} placeholder={locale === "ar" ? "اختر أيام العمل" : "Select days"} />
-              <div className="grid grid-cols-2 gap-2">
-                <Input name="workingHoursStart" type="time" label={locale === "ar" ? "من" : "From"} defaultValue="08:00" />
-                <Input name="workingHoursEnd" type="time" label={locale === "ar" ? "إلى" : "To"} defaultValue="16:00" />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input name="nameAr" label={ar ? "الاسم بالعربية" : "الاسم بالعربية"} required placeholder="د. محمد الأحمدي" />
+              <Input name="name" label={ar ? "الاسم بالإنجليزية" : "Full Name"} required placeholder="Dr. Mohammed Al-Ahmadi" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Select name="specialtyId" label={ar ? "التخصص" : "Specialty"} options={specOpts} placeholder={ar ? "اختر" : "Select"} required />
+              <Input name="phone" type="tel" label={ar ? "الهاتف" : "Phone"} placeholder="+966 5x xxx xxxx" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Input name="licenseNumber" label={ar ? "رقم الترخيص" : "License #"} />
+              <Input name="exp" type="number" min="0" label={ar ? "سنوات الخبرة" : "Experience"} />
+              <Input name="fee" type="number" min="0" label={ar ? "رسوم الكشف" : "Consult. Fee"} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Select name="days" label={ar ? "أيام العمل" : "Working Days"} options={daysOpts} placeholder={ar ? "اختر" : "Select"} />
+              <Input name="from" type="time" label={ar ? "من" : "From"} defaultValue="08:00" />
+              <Input name="to" type="time" label={ar ? "إلى" : "To"} defaultValue="16:00" />
             </div>
           </div>
-
-          {/* Section: Account */}
-          <div className="rounded-xl bg-green-50 border border-green-100 px-4 py-3">
-            <p className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4" />
-              {locale === "ar" ? "حساب الدخول للطبيب" : "Doctor Login Account"}
+          <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 p-4 space-y-3">
+            <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" />{ar ? "حساب الدخول" : "Login Account"}
             </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Input name="username" label={t("accountUsername")} required error={errors.username} placeholder={locale === "ar" ? "مثال: dr.mohammed" : "e.g. dr.mohammed"} />
-              <Input name="password" type="password" label={t("accountPassword")} required placeholder="••••••••" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input name="username" label={ar ? "اسم المستخدم" : "Username"} required error={errors.username} placeholder="dr.username" />
+              <Input name="password" type="password" label={ar ? "كلمة المرور" : "Password"} required placeholder="••••••••" />
             </div>
-            <p className="mt-2 text-xs text-green-600">
-              {locale === "ar" ? "سيستخدم الطبيب هذه البيانات لتسجيل الدخول ورؤية مرضاه ومواعيده فقط" : "The doctor will use these credentials to log in and see only their patients and appointments"}
-            </p>
           </div>
         </form>
       </Modal>
 
-      {/* ── Modal: Create Account for existing doctor ── */}
-      <Modal
-        isOpen={createAccountOpen}
-        onClose={() => { setCreateAccountOpen(false); setErrors({}); }}
-        title={`${t("createAccount")} — ${locale === "ar" ? selectedDoctor?.nameAr : selectedDoctor?.name}`}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => { setCreateAccountOpen(false); setErrors({}); }} disabled={loading}>{tc("cancel")}</Button>
-            <Button type="submit" form="create-account-form" loading={loading}>{t("createAccount")}</Button>
-          </>
-        }
-      >
-        <form id="create-account-form" onSubmit={handleCreateAccount} className="space-y-4">
-          <Input name="username" label={t("accountUsername")} required error={errors.username} placeholder="dr.username" />
-          <Input name="password" type="password" label={t("accountPassword")} required placeholder="••••••••" />
-          <p className="text-xs text-gray-400">
-            {locale === "ar" ? "سيتمكن الطبيب من الدخول بهذه البيانات" : "The doctor will use these credentials to sign in"}
-          </p>
+      {/* Create account modal */}
+      <Modal isOpen={accOpen} onClose={() => { setAccOpen(false); setErrors({}); }}
+        title={`${ar ? "إنشاء حساب لـ" : "Create account for"} ${ar ? selected?.nameAr : selected?.name}`}
+        size="sm" footer={<>
+          <Button variant="secondary" onClick={() => setAccOpen(false)} disabled={loading}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="submit" form="acc-form" loading={loading}>{ar ? "إنشاء" : "Create"}</Button>
+        </>}>
+        <form id="acc-form" onSubmit={handleCreateAcc} className="space-y-3">
+          <Input name="username" label={ar ? "اسم المستخدم" : "Username"} required error={errors.username} placeholder="dr.username" />
+          <Input name="password" type="password" label={ar ? "كلمة المرور" : "Password"} required placeholder="••••••••" />
         </form>
       </Modal>
 
-      {/* ── Modal: Reset Password ── */}
-      <Modal
-        isOpen={resetPwdOpen}
-        onClose={() => setResetPwdOpen(false)}
-        title={`${t("resetPassword")} — @${selectedDoctor?.user?.username}`}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setResetPwdOpen(false)} disabled={loading}>{tc("cancel")}</Button>
-            <Button type="submit" form="reset-pwd-form" loading={loading}>{t("resetPassword")}</Button>
-          </>
-        }
-      >
-        <form id="reset-pwd-form" onSubmit={handleResetPassword} className="space-y-4">
-          <Input name="password" type="password" label={t("newPassword")} required placeholder="••••••••" />
+      {/* Reset password */}
+      <Modal isOpen={pwdOpen} onClose={() => setPwdOpen(false)}
+        title={`${ar ? "كلمة مرور جديدة لـ" : "New password for"} @${selected?.user?.username}`}
+        size="sm" footer={<>
+          <Button variant="secondary" onClick={() => setPwdOpen(false)} disabled={loading}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="submit" form="pwd-form" loading={loading}>{ar ? "حفظ" : "Save"}</Button>
+        </>}>
+        <form id="pwd-form" onSubmit={handlePwd} className="space-y-3">
+          <Input name="password" type="password" label={ar ? "كلمة المرور الجديدة" : "New Password"} required placeholder="••••••••" />
         </form>
       </Modal>
 
-      {/* Delete Confirm */}
-      <ConfirmDialog
-        isOpen={!!deleteConfirm}
-        onClose={() => setDeleteConfirm(null)}
-        onConfirm={handleDelete}
+      {/* Secretary account */}
+      <Modal isOpen={secOpen} onClose={() => { setSecOpen(false); setErrors({}); }}
+        title={`${ar ? "إضافة سكرتير لـ" : "Add secretary for"} ${ar ? selected?.nameAr : selected?.name}`}
+        size="sm" footer={<>
+          <Button variant="secondary" onClick={() => setSecOpen(false)} disabled={loading}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="submit" form="sec-form" loading={loading}>{ar ? "إنشاء" : "Create"}</Button>
+        </>}>
+        <form id="sec-form" onSubmit={handleSec} className="space-y-3">
+          <Input name="name" label={ar ? "الاسم" : "Name"} required placeholder={ar ? "اسم السكرتير" : "Secretary name"} />
+          <Input name="username" label={ar ? "اسم المستخدم" : "Username"} required error={errors.username} placeholder="secretary.name" />
+          <Input name="password" type="password" label={ar ? "كلمة المرور" : "Password"} required placeholder="••••••••" />
+        </form>
+      </Modal>
+
+      <ConfirmDialog isOpen={!!deleteId} onClose={() => setDeleteId(null)}
+        onConfirm={async () => { setLoading(true); await deleteDoctorAndAccount(deleteId!); setDeleteId(null); setLoading(false); router.refresh(); }}
         loading={loading}
-        title={locale === "ar" ? "حذف الطبيب وحسابه" : "Delete Doctor & Account"}
-        message={locale === "ar" ? "سيتم حذف بيانات الطبيب وحساب الدخول الخاص به نهائياً." : "This will permanently delete the doctor and their login account."}
-      />
+        title={ar ? "حذف الطبيب وحسابه" : "Delete Doctor & Account"}
+        message={ar ? "سيُحذف الطبيب وحساب دخوله نهائياً." : "Doctor and their account will be permanently deleted."} />
     </div>
   );
 }

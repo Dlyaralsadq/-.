@@ -176,3 +176,53 @@ export async function getWaitingRoomData(doctorId: string) {
 
   return { waiting, called, withDoctor, done, pending, total: appointments.length };
 }
+
+export async function markPayment(appointmentId: string, doctorId: string, isPaid: boolean) {
+  const apt = await prisma.appointment.findFirst({ where: { id: appointmentId, doctorId } });
+  if (!apt) return { success: false };
+  await prisma.appointment.update({ where: { id: appointmentId }, data: { isPaid } });
+  revalidatePath("/[locale]/secretary", "page");
+  return { success: true };
+}
+
+export async function completeAppointment(appointmentId: string, doctorId: string, data?: {
+  diagnosis?: string; prescription?: string; notes?: string;
+}) {
+  const apt = await prisma.appointment.findFirst({ where: { id: appointmentId, doctorId } });
+  if (!apt) return { success: false };
+  
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      ...data,
+      arrivalStatus: "done",
+      status: "completed",
+      completedAt: new Date(),
+    },
+  });
+
+  revalidatePath("/[locale]/doctor", "page");
+  revalidatePath("/[locale]/secretary", "page");
+  revalidatePath("/[locale]/waiting", "page");
+  return { success: true };
+}
+
+export async function getCompletedAppointments(doctorId: string) {
+  return prisma.appointment.findMany({
+    where: { doctorId, status: "completed" },
+    include: { patient: true },
+    orderBy: { completedAt: "desc" },
+    take: 50,
+  });
+}
+
+export async function getTodaySyncedQueue(doctorId: string) {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const end = new Date(); end.setHours(23, 59, 59, 999);
+
+  return prisma.appointment.findMany({
+    where: { doctorId, date: { gte: start, lte: end }, status: { not: "completed" } },
+    include: { patient: true },
+    orderBy: [{ queueNumber: "asc" }, { date: "asc" }],
+  });
+}

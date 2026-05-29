@@ -2,12 +2,10 @@ import { requireAuth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getDoctorByUserId } from "@/app/actions/doctorPortal";
-import { getTodayQueue, getWaitingRoomData } from "@/app/actions/clinic";
+import { getTodaySyncedQueue } from "@/app/actions/clinic";
 import DoctorClinicClient from "./DoctorClinicClient";
 
-export default async function DoctorPage({
-  params,
-}: { params: Promise<{ locale: string }> }) {
+export default async function DoctorPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const session = await requireAuth(locale);
 
@@ -16,19 +14,11 @@ export default async function DoctorPage({
   const doctor = await getDoctorByUserId(session.userId);
   if (!doctor) redirect(`/${locale}/login`);
 
-  const [queue, roomData] = await Promise.all([
-    getTodayQueue(doctor.id),
-    getWaitingRoomData(doctor.id),
-  ]);
+  const queue = await getTodaySyncedQueue(doctor.id);
 
   return (
     <DashboardLayout locale={locale} userName={session.name} role="doctor">
-      <DoctorClinicClient
-        doctor={doctor}
-        queue={queue}
-        roomData={roomData}
-        locale={locale}
-      />
+      <DoctorClinicClient doctor={doctor} queue={queue as any} locale={locale} />
     </DashboardLayout>
   );
 }

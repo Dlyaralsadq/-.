@@ -5,43 +5,25 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "common" });
-
-  return {
-    title: t("appName"),
-    description: t("appSubtitle"),
-  };
+  return { title: locale === "ar" ? "كلينيك برو" : "ClinicPro", description: "Medical Clinic Management System" };
 }
 
-export default async function LocaleLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ locale: string }>;
-}) {
+export default async function LocaleLayout({ children, params }: { children: React.ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-
-  if (!routing.locales.includes(locale as "ar" | "en")) {
-    notFound();
-  }
+  if (!routing.locales.includes(locale as "ar" | "en")) notFound();
 
   const messages = await getMessages();
-  const isRtl = locale === "ar";
 
   return (
-    <html
-      lang={locale}
-      dir={isRtl ? "rtl" : "ltr"}
-      className="h-full"
-    >
-      <body className="h-full bg-gray-50 antialiased">
+    <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className="h-full">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      </head>
+      <body className="h-full">
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
