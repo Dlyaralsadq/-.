@@ -24,17 +24,21 @@ export default function Sidebar({ locale, isOpen, onClose, role = "admin" }: Sid
 
   const adminNav = [
     { href: `/${locale}/admin`, label: ta("title"), icon: ShieldCheck, exact: true },
-    { href: `/${locale}/admin/doctors`, label: tn("doctors"), icon: Stethoscope },
     { href: `/${locale}/specialties`, label: tn("specialties"), icon: ClipboardList },
   ];
 
   const doctorNav = [
     { href: `/${locale}/doctor`, label: tn("dashboard"), icon: LayoutDashboard, exact: true },
+    { href: `/${locale}/secretary`, label: locale === "ar" ? "الاستقبال" : "Reception", icon: ClipboardList },
     { href: `/${locale}/doctor/patients`, label: td("myPatients"), icon: Users },
     { href: `/${locale}/doctor/appointments`, label: td("myAppointments"), icon: Calendar },
   ];
 
-  const navItems = role === "doctor" ? doctorNav : adminNav;
+  const secretaryNav = [
+    { href: `/${locale}/secretary`, label: locale === "ar" ? "الاستقبال" : "Reception", icon: LayoutDashboard, exact: true },
+  ];
+
+  const navItems = role === "doctor" ? doctorNav : role === "secretary" ? secretaryNav : adminNav;
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");

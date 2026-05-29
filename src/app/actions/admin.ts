@@ -160,3 +160,23 @@ export async function deleteDoctorAndAccount(doctorId: string) {
   revalidatePath("/[locale]/admin", "layout");
   return { success: true };
 }
+
+export async function createSecretaryAccount(doctorId: string, username: string, password: string, name: string) {
+  const existing = await prisma.user.findUnique({ where: { username } });
+  if (existing) return { success: false, error: "username_taken" };
+
+  const hashedPwd = await hashPassword(password);
+  await prisma.user.create({
+    data: { username, password: hashedPwd, name, role: "secretary", linkedDoctorId: doctorId },
+  });
+
+  revalidatePath("/[locale]/admin", "layout");
+  return { success: true };
+}
+
+export async function getSecretariesForDoctor(doctorId: string) {
+  return prisma.user.findMany({
+    where: { linkedDoctorId: doctorId, role: "secretary" },
+    select: { id: true, username: true, name: true, isActive: true, createdAt: true },
+  });
+}
