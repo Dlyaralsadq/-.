@@ -24,7 +24,7 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
 }) {
   const router = useRouter();
   const ar = locale === "ar";
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState<Date | null>(null);
   const [blink, setBlink] = useState(true);
 
   // Auto-refresh every 10 seconds
@@ -33,8 +33,9 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
     return () => clearInterval(interval);
   }, [router]);
 
-  // Clock
+  // Clock — runs only on client to avoid hydration mismatch
   useEffect(() => {
+    setTime(new Date());
     const tick = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(tick);
   }, []);
@@ -46,10 +47,10 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
     return () => clearInterval(t);
   }, [roomData.called]);
 
-  const timeStr = time.toLocaleTimeString(ar ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" });
-  const dateStr = time.toLocaleDateString(ar ? "ar-SA" : "en-US", {
+  const timeStr = time ? time.toLocaleTimeString(ar ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+  const dateStr = time ? time.toLocaleDateString(ar ? "ar-SA" : "en-US", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
-  });
+  }) : "";
 
   const typeLabel: Record<string, string> = {
     consultation: ar ? "استشارة" : "Consultation",

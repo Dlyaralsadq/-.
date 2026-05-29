@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   UserPlus, CalendarPlus, CheckCircle2, Clock, User,
@@ -105,9 +105,12 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
     { value: "female", label: ar ? "أنثى" : "Female" },
   ];
 
-  const today = new Date().toLocaleDateString(ar ? "ar-SA" : "en-US", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
-  });
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString(ar ? "ar-SA" : "en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    }));
+  }, [ar]);
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -387,7 +390,7 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
             </p>
             <div className="grid grid-cols-2 gap-3">
               <Input name="date" type="date" label={ar ? "التاريخ" : "Date"} required
-                defaultValue={new Date().toISOString().split("T")[0]} />
+                defaultValue="" />
               <Input name="time" type="time" label={ar ? "الوقت" : "Time"} required />
             </div>
             <div className="grid grid-cols-2 gap-3">
