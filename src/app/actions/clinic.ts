@@ -39,9 +39,9 @@ export async function checkInPatient(appointmentId: string, doctorId: string) {
 }
 
 export async function callNextPatient(doctorId: string) {
-  // Mark current "with_doctor" as done
+  // Mark current "with_doctor" or "called" as done
   await prisma.appointment.updateMany({
-    where: { doctorId, arrivalStatus: "with_doctor" },
+    where: { doctorId, arrivalStatus: { in: ["with_doctor", "called"] } },
     data: { arrivalStatus: "done", status: "completed" },
   });
 
@@ -53,9 +53,10 @@ export async function callNextPatient(doctorId: string) {
   });
 
   if (next) {
+    // Set to "called" — blinking on screen until confirmed
     await prisma.appointment.update({
       where: { id: next.id },
-      data: { arrivalStatus: "with_doctor" },
+      data: { arrivalStatus: "called" },
     });
   }
 
@@ -63,6 +64,23 @@ export async function callNextPatient(doctorId: string) {
   revalidatePath("/[locale]/secretary", "page");
   revalidatePath("/[locale]/waiting", "page");
   return { success: true, next };
+}
+
+export async function confirmPatientEntry(appointmentId: string, doctorId: string) {
+  const apt = await prisma.appointment.findFirst({
+    where: { id: appointmentId, doctorId, arrivalStatus: "called" },
+  });
+  if (!apt) return { success: false };
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { arrivalStatus: "with_doctor" },
+  });
+
+  revalidatePath("/[locale]/doctor", "page");
+  revalidatePath("/[locale]/secretary", "page");
+  revalidatePath("/[locale]/waiting", "page");
+  return { success: true };
 }
 
 export async function updateDiagnosis(appointmentId: string, doctorId: string, data: {
@@ -151,9 +169,10 @@ export async function getWaitingRoomData(doctorId: string) {
   });
 
   const waiting = appointments.filter(a => a.arrivalStatus === "arrived");
+  const called = appointments.find(a => a.arrivalStatus === "called");
   const withDoctor = appointments.find(a => a.arrivalStatus === "with_doctor");
   const done = appointments.filter(a => a.arrivalStatus === "done");
   const pending = appointments.filter(a => a.arrivalStatus === "pending");
 
-  return { waiting, withDoctor, done, pending, total: appointments.length };
+  return { waiting, called, withDoctor, done, pending, total: appointments.length };
 }

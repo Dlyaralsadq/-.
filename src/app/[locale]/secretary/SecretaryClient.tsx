@@ -6,14 +6,14 @@ import { useRouter } from "next/navigation";
 import {
   UserPlus, CalendarPlus, CheckCircle2, Clock, User,
   Stethoscope, Phone, Hash, ChevronRight, Search,
-  PlayCircle, XCircle, RefreshCw, Monitor
+  PlayCircle, XCircle, RefreshCw, Monitor, DoorOpen
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import { checkInPatient, quickBookAppointment } from "@/app/actions/clinic";
+import { checkInPatient, quickBookAppointment, confirmPatientEntry } from "@/app/actions/clinic";
 import { formatTime } from "@/lib/utils";
 import Link from "next/link";
 
@@ -27,6 +27,7 @@ interface Appointment {
 const arrivalColors: Record<string, string> = {
   pending: "bg-gray-100 text-gray-600",
   arrived: "bg-amber-100 text-amber-700",
+  called: "bg-yellow-100 text-yellow-700",
   with_doctor: "bg-blue-100 text-blue-700",
   done: "bg-green-100 text-green-700",
 };
@@ -43,6 +44,7 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
 
   const ar = locale === "ar";
 
+  const called = queue.find(a => a.arrivalStatus === "called");
   const pending = queue.filter(a => a.arrivalStatus === "pending");
   const waiting = queue.filter(a => a.arrivalStatus === "arrived");
   const withDoctor = queue.find(a => a.arrivalStatus === "with_doctor");
@@ -51,6 +53,13 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
   const handleCheckIn = async (appointmentId: string) => {
     setLoading(true);
     await checkInPatient(appointmentId, doctorId);
+    setLoading(false);
+    router.refresh();
+  };
+
+  const handleConfirmEntry = async (appointmentId: string) => {
+    setLoading(true);
+    await confirmPatientEntry(appointmentId, doctorId);
     setLoading(false);
     router.refresh();
   };
@@ -141,6 +150,7 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
         {[
           { label: ar ? "لم يصلوا بعد" : "Pending", count: pending.length, color: "gray", icon: Clock },
           { label: ar ? "في الانتظار" : "Waiting", count: waiting.length, color: "amber", icon: User },
+          { label: ar ? "تم النداء" : "Called", count: called ? 1 : 0, color: "yellow", icon: Stethoscope },
           { label: ar ? "مع الطبيب" : "With Doctor", count: withDoctor ? 1 : 0, color: "blue", icon: Stethoscope },
           { label: ar ? "انتهوا" : "Done", count: done.length, color: "green", icon: CheckCircle2 },
         ].map(({ label, count, color, icon: Icon }) => (
@@ -157,6 +167,37 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
           </div>
         ))}
       </div>
+
+      {/* Called patient — needs confirmation */}
+      {called && (
+        <div className="rounded-2xl border-2 border-yellow-400 bg-yellow-50 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-white">
+                <span className="text-lg font-black">{called.queueNumber}</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500 animate-pulse" />
+                  <p className="text-sm font-bold text-yellow-800">
+                    {ar ? "تم نداء المريض — يُعرض على شاشة الانتظار" : "Patient Called — Showing on Waiting Screen"}
+                  </p>
+                </div>
+                <p className="text-base font-semibold text-gray-800 mt-0.5">{called.patient.name}</p>
+                <p className="text-xs text-gray-500">{called.patient.phone}</p>
+              </div>
+            </div>
+            <Button
+              className="gap-2 bg-green-600 hover:bg-green-700 text-white shrink-0"
+              onClick={() => handleConfirmEntry(called.id)}
+              disabled={loading}
+            >
+              <DoorOpen className="h-4 w-4" />
+              {ar ? "تأكيد الدخول" : "Confirm Entry"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Currently with doctor highlight */}
       {withDoctor && (
@@ -263,6 +304,7 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
                     <span className={`badge ${arrivalColors[apt.arrivalStatus]}`}>
                       {apt.arrivalStatus === "pending" ? (ar ? "لم يصل" : "Pending")
                         : apt.arrivalStatus === "arrived" ? (ar ? "وصل - ينتظر" : "Waiting")
+                        : apt.arrivalStatus === "called" ? (ar ? "تم النداء" : "Called")
                         : apt.arrivalStatus === "with_doctor" ? (ar ? "مع الطبيب" : "With Doctor")
                         : (ar ? "انتهى" : "Done")}
                     </span>
@@ -281,6 +323,13 @@ export default function SecretaryClient({ queue, doctor, patients, doctorId, loc
                           <Clock className="h-3.5 w-3.5" />
                           {ar ? `دوره ${apt.queueNumber}` : `Queue ${apt.queueNumber}`}
                         </span>
+                      )}
+                      {apt.arrivalStatus === "called" && (
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-green-700 bg-green-50 hover:bg-green-100 gap-1"
+                          onClick={() => handleConfirmEntry(apt.id)} disabled={loading}>
+                          <DoorOpen className="h-3.5 w-3.5" />
+                          {ar ? "تأكيد الدخول" : "Confirm Entry"}
+                        </Button>
                       )}
                       {apt.arrivalStatus === "with_doctor" && (
                         <span className="text-xs text-blue-600 font-medium flex items-center gap-1">

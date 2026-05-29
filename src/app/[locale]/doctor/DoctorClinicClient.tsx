@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Stethoscope, Users, ChevronRight, ClipboardList,
+  Stethoscope, Users, ChevronRight, ClipboardList, DoorOpen,
   CheckCircle2, Clock, ArrowRight, FileText,
   Phone, Activity, PlayCircle, Monitor, Calendar,
   Pill, NotebookPen, AlertCircle
@@ -13,7 +13,7 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Textarea from "@/components/ui/Textarea";
-import { callNextPatient, updateDiagnosis } from "@/app/actions/clinic";
+import { callNextPatient, updateDiagnosis, confirmPatientEntry } from "@/app/actions/clinic";
 import { formatTime } from "@/lib/utils";
 
 interface Appointment {
@@ -34,6 +34,7 @@ export default function DoctorClinicClient({ doctor, queue, roomData, locale }: 
   const [saving, setSaving] = useState(false);
 
   const ar = locale === "ar";
+  const called = queue.find(a => a.arrivalStatus === "called");
   const current = queue.find(a => a.arrivalStatus === "with_doctor");
   const waiting = queue.filter(a => a.arrivalStatus === "arrived");
   const done = queue.filter(a => a.arrivalStatus === "done");
@@ -42,6 +43,14 @@ export default function DoctorClinicClient({ doctor, queue, roomData, locale }: 
   const handleCallNext = async () => {
     startTransition(async () => {
       await callNextPatient(doctor.id);
+      router.refresh();
+    });
+  };
+
+  const handleConfirmEntry = async () => {
+    if (!called) return;
+    startTransition(async () => {
+      await confirmPatientEntry(called.id, doctor.id);
       router.refresh();
     });
   };
@@ -106,6 +115,7 @@ export default function DoctorClinicClient({ doctor, queue, roomData, locale }: 
           <div className="mt-5 grid grid-cols-4 gap-3">
             {[
               { label: ar ? "الانتظار" : "Waiting", value: waiting.length, color: "yellow" },
+              { label: ar ? "تم النداء" : "Called", value: called ? 1 : 0, color: "amber" },
               { label: ar ? "مع الطبيب" : "In Session", value: current ? 1 : 0, color: "blue" },
               { label: ar ? "انتهوا" : "Done", value: done.length, color: "green" },
               { label: ar ? "الإجمالي" : "Total", value: queue.length, color: "white" },
@@ -177,6 +187,42 @@ export default function DoctorClinicClient({ doctor, queue, roomData, locale }: 
                     {ar ? "التالي" : "Next"}
                   </Button>
                 </div>
+              </div>
+            </div>
+          ) : called ? (
+            /* Called patient — waiting for confirmation */
+            <div className="card overflow-hidden">
+              <div className="bg-yellow-500 px-5 py-3 flex items-center gap-2 text-white">
+                <span className="h-2.5 w-2.5 rounded-full bg-white animate-pulse" />
+                <span className="text-sm font-semibold">{ar ? "تم نداء المريض — في انتظار الدخول" : "Patient Called — Awaiting Entry"}</span>
+                {called.queueNumber && (
+                  <span className="ms-auto rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold">#{called.queueNumber}</span>
+                )}
+              </div>
+              <div className="p-5">
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700 text-xl font-bold">
+                    {called.patient.name[0]}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">{called.patient.name}</h2>
+                    <p className="text-sm text-gray-500 flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{called.patient.phone}</p>
+                    {called.reason && <p className="text-xs text-amber-600 mt-1">{called.reason}</p>}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-4 text-center mb-4">
+                  <p className="text-sm text-yellow-700 font-medium">
+                    {ar ? "شاشة العيادة تعرض نداء المريض الآن..." : "Waiting room screen is calling the patient..."}
+                  </p>
+                  <p className="text-xs text-yellow-500 mt-1">
+                    {ar ? "اضغط تأكيد الدخول عند وصول المريض لإيقاف الإشعار" : "Press Confirm Entry when patient arrives to stop the alert"}
+                  </p>
+                </div>
+                <Button className="w-full gap-2 bg-green-600 hover:bg-green-700" size="lg"
+                  onClick={handleConfirmEntry} disabled={isPending} loading={isPending}>
+                  <DoorOpen className="h-5 w-5" />
+                  {ar ? "✓ تأكيد دخول المريض — إيقاف الإشعار" : "✓ Confirm Patient Entry — Stop Alert"}
+                </Button>
               </div>
             </div>
           ) : (
