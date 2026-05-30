@@ -23,7 +23,7 @@ export default async function DoctorPatientsPage({
   const patients = await getDoctorPatients(doctor.id, search);
 
   return (
-    <DashboardLayout locale={locale} userName={session.name} role="doctor">
+    <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor?.specialty?.name ?? doctor?.specialty?.nameAr ?? undefined}>
       <DoctorPatientsClient patients={patients} doctorId={doctor.id} locale={locale} />
     </DashboardLayout>
   );

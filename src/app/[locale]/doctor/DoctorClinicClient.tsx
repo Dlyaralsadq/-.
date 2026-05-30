@@ -259,24 +259,6 @@ export default function DoctorClinicClient({ doctor, queue, locale }: {
               ))}
             </div>
           </div>
-
-          {/* Quick navigation */}
-          <div className="card p-4 space-y-1">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2 mb-3">{ar ? "روابط سريعة" : "Quick Links"}</p>
-            {[
-              { href: `/${locale}/secretary`, icon: ClipboardList, label: ar ? "الاستقبال" : "Reception" },
-              { href: `/${locale}/doctor/patients`, icon: Users, label: ar ? "مرضاي" : "My Patients" },
-              { href: `/${locale}/doctor/appointments`, icon: FileText, label: ar ? "سجل المواعيد" : "Appointments Archive" },
-              { href: `/${locale}/waiting?d=${doctor.id}`, icon: Monitor, label: ar ? "شاشة الانتظار" : "Waiting Screen", target: "_blank" },
-            ].map(({ href, icon: Icon, label, target }) => (
-              <Link key={href} href={href} target={target}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-colors">
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{label}</span>
-                <ChevronRight className="h-3.5 w-3.5 opacity-30 rtl:rotate-180" />
-              </Link>
-            ))}
-          </div>
         </div>
       </div>
 

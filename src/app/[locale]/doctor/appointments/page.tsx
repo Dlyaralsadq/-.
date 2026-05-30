@@ -27,7 +27,7 @@ export default async function DoctorAppointmentsPage({ params }: { params: Promi
   };
 
   return (
-    <DashboardLayout locale={locale} userName={session.name} role="doctor">
+    <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor?.specialty?.name ?? doctor?.specialty?.nameAr ?? undefined}>
       <div className="space-y-5 animate-fade-in">
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2">

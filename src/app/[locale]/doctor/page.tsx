@@ -17,7 +17,7 @@ export default async function DoctorPage({ params }: { params: Promise<{ locale:
   const queue = await getTodaySyncedQueue(doctor.id);
 
   return (
-    <DashboardLayout locale={locale} userName={session.name} role="doctor">
+    <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor.specialty.name}>
       <DoctorClinicClient doctor={doctor} queue={queue as any} locale={locale} />
     </DashboardLayout>
   );

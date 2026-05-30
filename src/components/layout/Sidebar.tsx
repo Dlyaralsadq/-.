@@ -1,13 +1,14 @@
 "use client";
 import { usePathname } from "next/navigation";
+import { getSpecialtyIcon } from "@/lib/specialtyIcons";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, Users, Calendar, Stethoscope, ClipboardList, Heart, ShieldCheck, ChevronRight, Tv2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-interface SidebarProps { locale: string; isOpen: boolean; onClose: () => void; role?: string; }
+interface SidebarProps { locale: string; isOpen: boolean; onClose: () => void; role?: string; doctorSpecialty?: string; }
 
-export default function Sidebar({ locale, isOpen, onClose, role = "admin" }: SidebarProps) {
+export default function Sidebar({ locale, isOpen, onClose, role = "admin", doctorSpecialty }: SidebarProps) {
   const tn = useTranslations("nav");
   const ta = useTranslations("admin");
   const td = useTranslations("doctorPortal");
@@ -57,7 +58,9 @@ export default function Sidebar({ locale, isOpen, onClose, role = "admin" }: Sid
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-[#1e2536]">
           <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl shadow-lg", accentBg[accentColor])}>
-            {role === "doctor" ? <Stethoscope className="h-4.5 w-4.5 text-white" /> : <Heart className="h-4.5 w-4.5 text-white" />}
+            {role === "doctor" 
+              ? <span className="text-lg leading-none">{doctorSpecialty ? getSpecialtyIcon(doctorSpecialty) : "🩺"}</span>
+              : <Heart className="h-4.5 w-4.5 text-white" />}
           </div>
           <div>
             <p className="text-sm font-bold text-white">{ar ? "كلينيك برو" : "ClinicPro"}</p>

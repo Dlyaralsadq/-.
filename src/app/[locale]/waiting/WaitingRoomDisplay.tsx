@@ -47,8 +47,8 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
     return () => clearInterval(t);
   }, [roomData.called]);
 
-  const timeStr = time ? time.toLocaleTimeString(ar ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--";
-  const dateStr = time ? time.toLocaleDateString(ar ? "ar-SA" : "en-US", {
+  const timeStr = time ? time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+  const dateStr = time ? time.toLocaleDateString("en-US", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   }) : "";
 

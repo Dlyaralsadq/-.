@@ -163,18 +163,17 @@ export async function getWaitingRoomData(doctorId: string) {
   const end = new Date(); end.setHours(23, 59, 59, 999);
 
   const appointments = await prisma.appointment.findMany({
-    where: { doctorId, date: { gte: start, lte: end } },
+    where: { doctorId, date: { gte: start, lte: end }, status: { not: "completed" } },
     include: { patient: true },
     orderBy: [{ queueNumber: "asc" }, { date: "asc" }],
   });
 
-  const waiting = appointments.filter(a => a.arrivalStatus === "arrived");
-  const called = appointments.find(a => a.arrivalStatus === "called");
+  const waiting    = appointments.filter(a => a.arrivalStatus === "arrived");
+  const called     = appointments.find(a => a.arrivalStatus === "called");
   const withDoctor = appointments.find(a => a.arrivalStatus === "with_doctor");
-  const done = appointments.filter(a => a.arrivalStatus === "done");
-  const pending = appointments.filter(a => a.arrivalStatus === "pending");
+  const pending    = appointments.filter(a => a.arrivalStatus === "pending");
 
-  return { waiting, called, withDoctor, done, pending, total: appointments.length };
+  return { waiting, called, withDoctor, done: [], pending, total: appointments.length };
 }
 
 export async function markPayment(appointmentId: string, doctorId: string, isPaid: boolean) {
@@ -217,6 +216,7 @@ export async function getCompletedAppointments(doctorId: string) {
 }
 
 export async function getTodaySyncedQueue(doctorId: string) {
+  // Returns today's appointments for live queue management
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const end = new Date(); end.setHours(23, 59, 59, 999);
 
@@ -224,5 +224,16 @@ export async function getTodaySyncedQueue(doctorId: string) {
     where: { doctorId, date: { gte: start, lte: end }, status: { not: "completed" } },
     include: { patient: true },
     orderBy: [{ queueNumber: "asc" }, { date: "asc" }],
+  });
+}
+
+export async function getAllUpcomingAppointments(doctorId: string) {
+  // Returns ALL non-completed appointments ordered by date
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+
+  return prisma.appointment.findMany({
+    where: { doctorId, date: { gte: start }, status: { not: "completed" } },
+    include: { patient: true },
+    orderBy: { date: "asc" },
   });
 }
