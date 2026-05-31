@@ -173,9 +173,10 @@ export async function getWaitingRoomData(doctorId: string) {
   const waiting    = appointments.filter(a => a.arrivalStatus === "arrived");
   const called     = appointments.find(a => a.arrivalStatus === "called");
   const withDoctor = appointments.find(a => a.arrivalStatus === "with_doctor");
+  const onHold     = appointments.filter(a => a.arrivalStatus === "on_hold");
   const pending    = appointments.filter(a => a.arrivalStatus === "pending");
 
-  return { waiting, called, withDoctor, done: [], pending, total: appointments.length };
+  return { waiting, called, withDoctor, onHold, done: [], pending, total: appointments.length };
 }
 
 export async function markPayment(appointmentId: string, doctorId: string, isPaid: boolean) {
@@ -254,4 +255,44 @@ export async function getAllUpcomingAppointments(doctorId: string) {
     include: { patient: true },
     orderBy: { date: "asc" },
   });
+}
+
+// ── Hold for Test ──────────────────────────────────────────────
+export async function holdPatientForTest(appointmentId: string, doctorId: string, holdReason: string) {
+  const apt = await prisma.appointment.findFirst({ where: { id: appointmentId, doctorId, arrivalStatus: "with_doctor" } });
+  if (!apt) return { success: false };
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { arrivalStatus: "on_hold", holdReason },
+  });
+
+  revalidatePath("/[locale]/doctor", "page");
+  revalidatePath("/[locale]/secretary", "page");
+  revalidatePath("/[locale]/waiting", "page");
+  return { success: true };
+}
+
+export async function patientReturnedFromTest(appointmentId: string, doctorId: string) {
+  const apt = await prisma.appointment.findFirst({ where: { id: appointmentId, doctorId, arrivalStatus: "on_hold" } });
+  if (!apt) return { success: false };
+
+  // Get next queue number for today
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const end = new Date(); end.setHours(23, 59, 59, 999);
+  const maxQueue = await prisma.appointment.aggregate({
+    where: { doctorId, date: { gte: start, lte: end }, queueNumber: { not: null } },
+    _max: { queueNumber: true },
+  });
+  const nextQueue = (maxQueue._max.queueNumber ?? 0) + 1;
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { arrivalStatus: "arrived", holdReason: null, queueNumber: nextQueue },
+  });
+
+  revalidatePath("/[locale]/doctor", "page");
+  revalidatePath("/[locale]/secretary", "page");
+  revalidatePath("/[locale]/waiting", "page");
+  return { success: true };
 }

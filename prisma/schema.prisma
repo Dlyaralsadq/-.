@@ -26,6 +26,7 @@ model Specialty {
   description   String?
   descriptionAr String?
   isActive      Boolean  @default(true)
+  config        String?  // JSON: specialty-specific workflow config
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   doctors       Doctor[]
@@ -102,6 +103,7 @@ model Appointment {
   diagnosis         String?
   prescription      String?
   completedAt       DateTime?
+  holdReason        String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getDoctorByUserId } from "@/app/actions/doctorPortal";
 import { getTodaySyncedQueue } from "@/app/actions/clinic";
+import { getSpecialtyConfig } from "@/lib/specialtyConfig";
 import DoctorClinicClient from "./DoctorClinicClient";
 
 export default async function DoctorPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -15,10 +16,11 @@ export default async function DoctorPage({ params }: { params: Promise<{ locale:
   if (!doctor) redirect(`/${locale}/login`);
 
   const queue = await getTodaySyncedQueue(doctor.id);
+  const specialtyConfig = getSpecialtyConfig(doctor.specialty.name, (doctor.specialty as any).config);
 
   return (
     <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor.specialty.name}>
-      <DoctorClinicClient doctor={doctor} queue={queue as any} locale={locale} />
+      <DoctorClinicClient doctor={doctor} queue={queue as any} locale={locale} specialtyConfig={specialtyConfig} />
     </DashboardLayout>
   );
 }

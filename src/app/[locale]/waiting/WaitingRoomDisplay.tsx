@@ -14,6 +14,7 @@ interface RoomData {
   waiting: Appointment[];
   called?: Appointment | null;
   withDoctor?: Appointment | null;
+  onHold?: Appointment[];
   done: Appointment[];
   pending: Appointment[];
   total: number;
@@ -151,6 +152,31 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
             <p className="text-2xl text-white/30 font-medium">
               {ar ? "لا يوجد مريض حالياً" : "No patient currently"}
             </p>
+          </div>
+        )}
+
+        {/* On Hold section */}
+        {roomData.onHold && roomData.onHold.length > 0 && (
+          <div className="rounded-2xl bg-amber-500/8 border border-amber-500/20 overflow-hidden">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-amber-500/15">
+              <span className="text-xl">🔬</span>
+              <h2 className="text-base font-bold text-amber-300">
+                {ar ? "في انتظار فحص خارجي" : "Waiting for External Test"} — {roomData.onHold.length}
+              </h2>
+            </div>
+            <div className="flex flex-wrap gap-4 px-6 py-4">
+              {roomData.onHold.map(apt => (
+                <div key={apt.id} className="flex items-center gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-300 font-black">
+                    {apt.queueNumber}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{apt.patient.name}</p>
+                    <p className="text-xs text-amber-400/80">{(apt as any).holdReason ?? (ar ? "فحص خارجي" : "External test")}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

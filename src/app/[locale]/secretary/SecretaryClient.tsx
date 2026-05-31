@@ -6,13 +6,13 @@ import Link from "next/link";
 import {
   CalendarPlus, CheckCircle2, Clock, User, Stethoscope,
   Phone, Search, DoorOpen, Banknote, MonitorPlay,
-  UserCheck, AlertCircle, CheckCheck, ChevronDown, ChevronRight
+  UserCheck, AlertCircle, CheckCheck, ChevronDown, ChevronRight, FlaskConical, RotateCcw
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import { checkInPatient, quickBookAppointment, confirmPatientEntry, markPayment } from "@/app/actions/clinic";
+import { checkInPatient, quickBookAppointment, confirmPatientEntry, markPayment, patientReturnedFromTest } from "@/app/actions/clinic";
 
 interface Appointment {
   id: string; appointmentNumber: string; date: Date; type: string;
@@ -26,6 +26,7 @@ const STATUS_CFG: Record<string, { ar: string; en: string; dot: string; bg: stri
   arrived:     { ar: "وصل",       en: "Arrived",     dot: "bg-amber-400",          bg: "bg-amber-500/10",  text: "text-amber-400" },
   called:      { ar: "تم النداء", en: "Called",      dot: "bg-yellow-400 animate-pulse", bg: "bg-yellow-500/15", text: "text-yellow-300" },
   with_doctor: { ar: "مع الطبيب", en: "With Doctor", dot: "bg-blue-400",           bg: "bg-blue-500/10",   text: "text-blue-400" },
+  on_hold:     { ar: "فحص خارجي", en: "External Test", dot: "bg-amber-500 animate-pulse", bg: "bg-amber-500/15", text: "text-amber-300" },
   done:        { ar: "انتهى",     en: "Done",        dot: "bg-emerald-400",        bg: "bg-emerald-500/10",text: "text-emerald-400" },
 };
 
@@ -84,6 +85,7 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
   const waiting   = todayApts.filter(a => a.arrivalStatus === "arrived");
   const called    = todayApts.find(a => a.arrivalStatus === "called");
   const withDoc   = todayApts.find(a => a.arrivalStatus === "with_doctor");
+  const onHold    = todayApts.filter(a => a.arrivalStatus === "on_hold");
 
   const filtered = search
     ? appointments.filter(a =>
@@ -155,7 +157,7 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
           { label: ar ? "مواعيد اليوم" : "Today", n: todayApts.length, color: "indigo", icon: CalendarPlus },
           { label: ar ? "في الانتظار" : "Waiting",  n: waiting.length, color: "amber",  icon: Clock },
           { label: ar ? "مع الطبيب" : "With Doctor", n: (called ? 1 : 0) + (withDoc ? 1 : 0), color: "blue", icon: Stethoscope },
-          { label: ar ? "إجمالي المواعيد" : "Total", n: appointments.length, color: "slate", icon: CheckCircle2 },
+          { label: ar ? "فحص خارجي" : "On Hold", n: onHold.length, color: "amber", icon: FlaskConical },
         ].map(({ label, n, color, icon: Icon }) => (
           <div key={label} className="card p-4">
             <div className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-${color}-500/10`}>
@@ -184,6 +186,36 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
               onClick={() => act(() => confirmPatientEntry(called.id, doctorId))} disabled={loading}>
               <DoorOpen className="h-3.5 w-3.5" />{ar ? "تأكيد الدخول" : "Confirm Entry"}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* On Hold patients alert */}
+      {onHold.length > 0 && (
+        <div className="card overflow-hidden border-amber-500/20">
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-[#1e2536] bg-amber-500/8">
+            <FlaskConical className="h-4 w-4 text-amber-400" />
+            <span className="text-sm font-semibold text-amber-300">{ar ? "مرضى في انتظار فحص خارجي" : "Patients Waiting for External Test"}</span>
+            <span className="ms-auto rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400 font-bold">{onHold.length}</span>
+          </div>
+          <div className="divide-y divide-[#1e2536]">
+            {onHold.map(apt => (
+              <div key={apt.id} className="flex items-center gap-4 px-5 py-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/25 text-amber-300 font-bold text-sm">
+                  {apt.patient.name[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">{apt.patient.name}</p>
+                  <p className="text-xs text-amber-400 flex items-center gap-1.5">
+                    <FlaskConical className="h-3 w-3" />{(apt as any).holdReason ?? (ar ? "فحص خارجي" : "External test")}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 shrink-0"
+                  onClick={() => act(() => patientReturnedFromTest(apt.id, doctorId))} disabled={loading}>
+                  <RotateCcw className="h-3.5 w-3.5" />{ar ? "عاد من الفحص" : "Returned"}
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
       )}

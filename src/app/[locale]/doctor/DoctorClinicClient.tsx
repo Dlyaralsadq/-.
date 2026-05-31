@@ -7,12 +7,14 @@ import {
   Stethoscope, Users, ChevronRight, ClipboardList,
   CheckCircle2, Clock, FileText, Phone, Activity,
   PlayCircle, Monitor, Calendar, NotebookPen,
-  AlertCircle, DoorOpen, CheckCheck, ArrowRight, Banknote
+  AlertCircle, DoorOpen, CheckCheck, ArrowRight, Banknote,
+  FlaskConical, ChevronDown
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Textarea from "@/components/ui/Textarea";
-import { callNextPatient, confirmPatientEntry, completeAppointment } from "@/app/actions/clinic";
+import { callNextPatient, confirmPatientEntry, completeAppointment, holdPatientForTest } from "@/app/actions/clinic";
+import type { SpecialtyConfig } from "@/lib/specialtyConfig";
 import { formatTime, formatDate } from "@/lib/utils";
 
 interface Appointment {
@@ -30,20 +32,23 @@ const typeLabel = (type: string, ar: boolean) => ({
   procedure: ar ? "إجراء" : "Procedure",
 }[type] ?? type);
 
-export default function DoctorClinicClient({ doctor, queue, locale }: {
+export default function DoctorClinicClient({ doctor, queue, locale, specialtyConfig }: {
   doctor: any; queue: Appointment[]; locale: string;
+  specialtyConfig?: SpecialtyConfig;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [consultOpen, setConsultOpen] = useState(false);
   const [activeApt, setActiveApt] = useState<Appointment | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showHoldMenu, setShowHoldMenu] = useState(false);
 
   const ar = locale === "ar";
 
   const called    = queue.find(a => a.arrivalStatus === "called");
   const current   = queue.find(a => a.arrivalStatus === "with_doctor");
   const waiting   = queue.filter(a => a.arrivalStatus === "arrived");
+  const onHold    = queue.filter(a => a.arrivalStatus === "on_hold");
   const pending   = queue.filter(a => a.arrivalStatus === "pending");
 
   const act = (fn: () => Promise<unknown>) => {
@@ -166,10 +171,34 @@ export default function DoctorClinicClient({ doctor, queue, locale }: {
                     )}
                   </div>
                 </div>
-                <div className="mt-4 flex gap-3">
+                <div className="mt-4 flex flex-wrap gap-3">
                   <Button className="flex-1 gap-2" onClick={() => { setActiveApt(current); setConsultOpen(true); }}>
-                    <NotebookPen className="h-4 w-4" />{ar ? "تسجيل التشخيص وإنهاء الكشف" : "Record & Complete Consultation"}
+                    <NotebookPen className="h-4 w-4" />{ar ? "تسجيل وإنهاء الكشف" : "Record & Complete"}
                   </Button>
+                  {specialtyConfig?.hasHoldForTest && specialtyConfig.holdOptions.length > 0 && (
+                    <div className="relative">
+                      <Button variant="outline" className="gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                        onClick={() => setShowHoldMenu(!showHoldMenu)}>
+                        <FlaskConical className="h-4 w-4" />
+                        {ar ? specialtyConfig.holdSectionTitle?.ar ?? "إرسال لفحص" : specialtyConfig.holdSectionTitle?.en ?? "Send for Test"}
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                      {showHoldMenu && (
+                        <div className={`absolute top-full mt-1 z-50 w-64 rounded-xl bg-[#111827] border border-[#2a3347] shadow-2xl py-1 ${ar ? "right-0" : "left-0"}`}>
+                          <p className="px-3 py-2 text-xs font-semibold text-amber-400 border-b border-[#2a3347]">
+                            {ar ? "اختر الفحص المطلوب" : "Select required test"}
+                          </p>
+                          {specialtyConfig.holdOptions.map(opt => (
+                            <button key={opt.value}
+                              onClick={() => { setShowHoldMenu(false); act(() => holdPatientForTest(current.id, doctor.id, ar ? opt.labelAr : opt.labelEn)); }}
+                              className="w-full text-start px-4 py-2.5 text-sm text-slate-300 hover:bg-amber-500/10 hover:text-amber-300 transition-colors">
+                              {ar ? opt.labelAr : opt.labelEn}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {waiting.length > 0 && (
                     <Button variant="outline" className="gap-1.5" onClick={() => act(() => callNextPatient(doctor.id))} disabled={isPending}>
                       <PlayCircle className="h-4 w-4" />{ar ? "التالي" : "Next"}
