@@ -183,10 +183,7 @@ export default function DoctorPatientsClient({ patients, doctorId, locale }: {
         </>}>
         <form id="patient-form" onSubmit={handleSubmit} className="space-y-4">
           {errors.general && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{errors.general}</div>}
-          <div className="grid grid-cols-2 gap-4">
-            <Input name="name" label={locale === "ar" ? "الاسم بالإنجليزية" : "Full Name"} defaultValue={editPatient?.name} required />
-            <Input name="nameAr" label={locale === "ar" ? "الاسم بالعربية" : "الاسم بالعربية"} defaultValue={editPatient?.nameAr ?? ""} />
-          </div>
+          <Input name="name" label={locale === "ar" ? "اسم المريض" : "Patient Name"} defaultValue={editPatient?.name} required />
           <div className="grid grid-cols-2 gap-4">
             <Select name="gender" label={t("gender")} options={genderOptions} defaultValue={editPatient?.gender} placeholder={locale === "ar" ? "اختر" : "Select"} required />
             <Input name="dateOfBirth" type="date" label={t("dateOfBirth")} defaultValue={editPatient?.dateOfBirth ? new Date(editPatient.dateOfBirth).toISOString().split("T")[0] : ""} />
@@ -205,6 +202,7 @@ export default function DoctorPatientsClient({ patients, doctorId, locale }: {
           </div>
           <Textarea name="medicalHistory" label={t("medicalHistory")} defaultValue={editPatient?.medicalHistory ?? ""} rows={2} />
           <Textarea name="allergies" label={t("allergies")} defaultValue={editPatient?.allergies ?? ""} rows={2} />
+          <Textarea name="notes" label={locale === "ar" ? "ملاحظات" : "Notes"} defaultValue={(editPatient as any)?.notes ?? ""} rows={2} placeholder={locale === "ar" ? "أي ملاحظات إضافية عن المريض..." : "Any additional notes about the patient..."} />
         </form>
       </Modal>
     </div>

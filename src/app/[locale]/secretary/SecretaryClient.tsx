@@ -60,7 +60,7 @@ function formatDayHeader(dateStr: string, locale: string): { label: string; isTo
 }
 
 function formatTime(date: Date): string {
-  return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  return new Date(date).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
 }
 
 export default function SecretaryClient({ appointments, doctor, patients, doctorId, locale }: {
@@ -72,6 +72,7 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
+  const [paymentConfirmId, setPaymentConfirmId] = useState<string | null>(null);
 
   const ar = locale === "ar";
 
@@ -108,11 +109,10 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
       patientName: fd.get("patientName") as string,
       patientPhone: fd.get("patientPhone") as string,
       patientGender: fd.get("patientGender") as string,
-      patientNameAr: fd.get("patientNameAr") as string || undefined,
       date: fd.get("date") as string,
       time: fd.get("time") as string,
       type: fd.get("type") as string,
-      reason: fd.get("reason") as string || undefined,
+      notes: fd.get("notes") as string || undefined,
     });
     setLoading(false);
     if (result.success) { setBookingOpen(false); router.refresh(); }
@@ -347,6 +347,42 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
         </div>
       )}
 
+      {/* Payment Confirmation Modal */}
+      {paymentConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setPaymentConfirmId(null)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-[#2a3347] bg-[#111827] shadow-2xl p-6 animate-fade-up">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/25">
+                <Banknote className="h-7 w-7 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">{ar ? "تأكيد الدفع مطلوب" : "Payment Required"}</h3>
+                <p className="text-sm text-slate-400 mt-1">{ar ? "هل تم دفع رسوم الكشف؟ يجب تأكيد الدفع قبل تسجيل وصول المريض." : "Has the consultation fee been paid? Payment must be confirmed before check-in."}</p>
+              </div>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setPaymentConfirmId(null)}
+                  className="flex-1 rounded-xl border border-[#2a3347] bg-[#1e2536] py-2.5 text-sm text-slate-400 hover:bg-slate-700/50 transition-colors">
+                  {ar ? "إلغاء" : "Cancel"}
+                </button>
+                <button onClick={async () => {
+                  const id = paymentConfirmId;
+                  setPaymentConfirmId(null);
+                  setLoading(true);
+                  await markPayment(id, doctorId, true);
+                  await checkInPatient(id, doctorId);
+                  setLoading(false);
+                  router.refresh();
+                }}
+                  className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2">
+                  <Banknote className="h-4 w-4" />{ar ? "تأكيد الدفع والوصول" : "Confirm Payment & Arrival"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Booking Modal */}
       <Modal isOpen={bookingOpen} onClose={() => setBookingOpen(false)}
         title={ar ? "حجز موعد جديد" : "New Appointment Booking"} size="lg"
@@ -358,8 +394,7 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
           <div className="rounded-xl bg-indigo-500/8 border border-indigo-500/20 p-4 space-y-3">
             <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">{ar ? "بيانات المريض" : "Patient Info"}</p>
             <div className="grid grid-cols-2 gap-3">
-              <Input name="patientName" label={ar ? "الاسم (إنجليزي)" : "Full Name"} required placeholder="Mohammed Al-Ahmadi" />
-              <Input name="patientNameAr" label={ar ? "الاسم (عربي)" : "Name in Arabic"} placeholder="محمد الأحمدي" />
+              <Input name="patientName" label={ar ? "اسم المريض" : "Patient Name"} required placeholder="محمد الأحمدي" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input name="patientPhone" type="tel" label={ar ? "الجوال" : "Phone"} required placeholder="+966 5x xxx xxxx" />
@@ -378,7 +413,7 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select name="type" label={ar ? "نوع الزيارة" : "Type"} options={typeOpts} defaultValue="consultation" />
-              <Input name="reason" label={ar ? "سبب الزيارة" : "Reason"} />
+              <Input name="notes" label={ar ? "ملاحظات" : "Notes"} />
             </div>
           </div>
         </form>

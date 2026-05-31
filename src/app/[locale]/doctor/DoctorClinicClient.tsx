@@ -56,7 +56,6 @@ export default function DoctorClinicClient({ doctor, queue, locale }: {
     setSaving(true);
     const fd = new FormData(e.currentTarget);
     await completeAppointment(activeApt.id, doctor.id, {
-      diagnosis: fd.get("diagnosis") as string,
       prescription: fd.get("prescription") as string,
       notes: fd.get("notes") as string,
     });
@@ -286,8 +285,7 @@ export default function DoctorClinicClient({ doctor, queue, locale }: {
                 <p className="text-xs text-slate-600">{typeLabel(activeApt.type, ar)}</p>
               </div>
             </div>
-            <Textarea name="diagnosis" label={ar ? "التشخيص" : "Diagnosis"} rows={3} defaultValue={activeApt.diagnosis ?? ""} placeholder={ar ? "اكتب التشخيص..." : "Enter diagnosis..."} />
-            <Textarea name="prescription" label={ar ? "الوصفة الطبية" : "Prescription"} rows={3} defaultValue={activeApt.prescription ?? ""} placeholder={ar ? "الأدوية والجرعات..." : "Medications and dosages..."} />
+<Textarea name="prescription" label={ar ? "الوصفة الطبية" : "Prescription"} rows={3} defaultValue={activeApt.prescription ?? ""} placeholder={ar ? "الأدوية والجرعات..." : "Medications and dosages..."} />
             <Textarea name="notes" label={ar ? "ملاحظات" : "Notes"} rows={2} defaultValue={activeApt.notes ?? ""} />
             <p className="text-xs text-slate-500 flex items-center gap-1.5">
               <AlertCircle className="h-3.5 w-3.5 text-amber-500" />

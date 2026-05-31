@@ -105,6 +105,7 @@ export async function quickBookAppointment(doctorId: string, data: {
   time: string;
   type?: string;
   reason?: string;
+  notes?: string;
   existingPatientId?: string;
 }) {
   let patientId = data.existingPatientId;
@@ -138,6 +139,7 @@ export async function quickBookAppointment(doctorId: string, data: {
       type: data.type ?? "consultation",
       status: "scheduled",
       reason: data.reason,
+      notes: data.notes,
     },
   });
 
@@ -204,6 +206,22 @@ export async function completeAppointment(appointmentId: string, doctorId: strin
   revalidatePath("/[locale]/secretary", "page");
   revalidatePath("/[locale]/waiting", "page");
   return { success: true };
+}
+
+export async function getAllAppointmentsForArchive(doctorId: string) {
+  const [completed, pending] = await Promise.all([
+    prisma.appointment.findMany({
+      where: { doctorId, status: "completed" },
+      include: { patient: true },
+      orderBy: { completedAt: "desc" },
+    }),
+    prisma.appointment.findMany({
+      where: { doctorId, status: { not: "completed" } },
+      include: { patient: true },
+      orderBy: { date: "asc" },
+    }),
+  ]);
+  return { completed, pending };
 }
 
 export async function getCompletedAppointments(doctorId: string) {

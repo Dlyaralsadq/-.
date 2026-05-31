@@ -21,9 +21,9 @@ export function calculateAge(dateOfBirth: Date): number {
   return age;
 }
 
-export function formatDate(date: Date | string, locale: string = "ar-SA"): string {
+export function formatDate(date: Date | string, locale: string = "ar"): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US", {
+  return d.toLocaleDateString("ar-SA", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -32,7 +32,7 @@ export function formatDate(date: Date | string, locale: string = "ar-SA"): strin
 
 export function formatTime(date: Date | string, locale: string = "ar"): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleTimeString(locale === "ar" ? "ar-SA" : "en-US", {
+  return d.toLocaleTimeString("ar-SA", {
     hour: "2-digit",
     minute: "2-digit",
   });
