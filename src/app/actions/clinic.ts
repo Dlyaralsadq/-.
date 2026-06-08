@@ -296,3 +296,22 @@ export async function patientReturnedFromTest(appointmentId: string, doctorId: s
   revalidatePath("/[locale]/waiting", "page");
   return { success: true };
 }
+
+export async function callOnHoldPatient(appointmentId: string, doctorId: string) {
+  // Mark current with_doctor or called as done first
+  await prisma.appointment.updateMany({
+    where: { doctorId, arrivalStatus: { in: ["with_doctor", "called"] } },
+    data: { arrivalStatus: "done", status: "completed", completedAt: new Date() },
+  });
+
+  // Set on_hold patient to called directly
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { arrivalStatus: "called", holdReason: null },
+  });
+
+  revalidatePath("/[locale]/doctor", "page");
+  revalidatePath("/[locale]/secretary", "page");
+  revalidatePath("/[locale]/waiting", "page");
+  return { success: true };
+}

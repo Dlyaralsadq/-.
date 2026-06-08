@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Stethoscope, Clock, CheckCircle2, ArrowBigRight } from "lucide-react";
+import { Stethoscope, Clock, FlaskConical } from "lucide-react";
 
 interface Appointment {
   id: string; queueNumber: number | null; arrivalStatus: string;
+  holdReason?: string | null;
   patient: { name: string; nameAr: string | null; };
   type: string;
 }
@@ -20,7 +21,7 @@ interface RoomData {
   total: number;
 }
 
-export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId }: {
+export default function WaitingRoomDisplay({ roomData, doctor, locale }: {
   roomData: RoomData; doctor: any; locale: string; doctorId: string;
 }) {
   const router = useRouter();
@@ -28,30 +29,28 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
   const [time, setTime] = useState<Date | null>(null);
   const [blink, setBlink] = useState(true);
 
-  // Auto-refresh every 10 seconds
+  // Auto-refresh every 2 seconds
   useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 10000);
+    const interval = setInterval(() => router.refresh(), 2000);
     return () => clearInterval(interval);
   }, [router]);
 
-  // Clock — runs only on client to avoid hydration mismatch
+  // Clock
   useEffect(() => {
     setTime(new Date());
     const tick = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(tick);
   }, []);
 
-  // Blink toggle for called patient
+  // Blink for called patient
   useEffect(() => {
-    if (!roomData.called) return;
+    if (!roomData.called) { setBlink(true); return; }
     const t = setInterval(() => setBlink(b => !b), 700);
     return () => clearInterval(t);
   }, [roomData.called]);
 
   const timeStr = time ? time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--";
-  const dateStr = time ? time.toLocaleDateString("en-US", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
-  }) : "";
+  const dateStr = time ? time.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : "";
 
   const typeLabel: Record<string, string> = {
     consultation: ar ? "استشارة" : "Consultation",
@@ -60,16 +59,17 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
     procedure: ar ? "إجراء" : "Procedure",
   };
 
-  const activeCalled = roomData.called;
-  const activeWithDoctor = roomData.withDoctor;
+  const activeCalled  = roomData.called;
+  const activeWithDoc = roomData.withDoctor;
+  const onHold        = roomData.onHold ?? [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white" dir={ar ? "rtl" : "ltr"}>
 
-      {/* Top bar */}
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 px-8 py-5 bg-black/20">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-900/50">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-900/50">
             <Stethoscope className="h-7 w-7 text-white" />
           </div>
           <div>
@@ -86,157 +86,122 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale, doctorId 
 
       <div className="p-8 space-y-6">
 
-        {/* ── CALLED PATIENT — blinking alert ── */}
+        {/* ── CALLED — blinking ── */}
         {activeCalled && (
           <div className={`rounded-3xl border-4 p-8 text-center transition-all duration-300 ${
-            blink
-              ? "border-yellow-400 bg-yellow-500/20 shadow-2xl shadow-yellow-500/30"
-              : "border-yellow-300/50 bg-yellow-500/10"
+            blink ? "border-yellow-400 bg-yellow-500/15 shadow-2xl shadow-yellow-900/30" : "border-yellow-300/40 bg-yellow-500/8"
           }`}>
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <span className={`inline-block h-4 w-4 rounded-full bg-yellow-400 ${blink ? "opacity-100 scale-125" : "opacity-50 scale-100"} transition-all duration-300`} />
-              <p className={`text-xl font-bold ${blink ? "text-yellow-300" : "text-yellow-200"} transition-colors duration-300`}>
-                {ar ? "يُرجى التوجه لغرفة الطبيب" : "Please Proceed to Doctor's Room"}
-              </p>
-              <ArrowBigRight className={`h-6 w-6 ${blink ? "text-yellow-400 translate-x-2" : "text-yellow-300"} transition-all duration-300 rtl:rotate-180`} />
-            </div>
-            <div className="flex items-center justify-center gap-8">
+            <p className={`text-xl font-bold mb-4 flex items-center justify-center gap-3 ${blink ? "text-yellow-300" : "text-yellow-200/70"}`}>
+              <span className={`h-4 w-4 rounded-full bg-yellow-400 transition-all ${blink ? "opacity-100 scale-125" : "opacity-40 scale-100"}`} />
+              {ar ? "يُرجى التوجه لغرفة الطبيب" : "Please Proceed to Doctor's Room"}
+            </p>
+            <div className="flex items-center justify-center gap-10">
               <div>
-                <p className="text-sm text-yellow-300 mb-1">{ar ? "رقم الدور" : "Queue Number"}</p>
-                <p className={`text-[120px] font-black leading-none ${blink ? "text-yellow-300" : "text-yellow-200"} transition-colors`}>
+                <p className="text-sm text-yellow-300/70">{ar ? "رقم الدور" : "Queue"}</p>
+                <p className={`text-[110px] font-black leading-none ${blink ? "text-yellow-300" : "text-yellow-200/70"}`}>
                   {activeCalled.queueNumber}
                 </p>
               </div>
-              <div className="h-28 w-0.5 bg-yellow-400/30" />
+              <div className="h-24 w-0.5 bg-yellow-400/20" />
               <div className="text-start">
-                <p className="text-sm text-yellow-300 mb-2">{ar ? "المريض" : "Patient"}</p>
+                <p className="text-sm text-yellow-300/70 mb-2">{ar ? "المريض" : "Patient"}</p>
                 <p className="text-4xl font-bold text-white">{activeCalled.patient.name}</p>
                 {activeCalled.patient.nameAr && (
-                  <p className="text-2xl text-yellow-200 mt-1">{activeCalled.patient.nameAr}</p>
+                  <p className="text-2xl text-yellow-200/70 mt-1">{activeCalled.patient.nameAr}</p>
                 )}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── WITH DOCTOR — steady green ── */}
-        {activeWithDoctor && !activeCalled && (
-          <div className="rounded-3xl bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-center shadow-2xl shadow-blue-900/40">
+        {/* ── WITH DOCTOR — steady ── */}
+        {activeWithDoc && !activeCalled && (
+          <div className="rounded-3xl bg-gradient-to-r from-blue-700/80 to-indigo-700/80 border border-blue-500/30 p-8 text-center">
             <p className="text-base text-blue-200 flex items-center justify-center gap-2 mb-4">
-              <span className="inline-block h-3 w-3 rounded-full bg-green-400 animate-pulse" />
+              <span className="h-3 w-3 rounded-full bg-green-400 animate-pulse" />
               {ar ? "يتم الكشف الآن" : "Currently in session"}
             </p>
-            <div className="flex items-center justify-center gap-8">
+            <div className="flex items-center justify-center gap-10">
               <div>
-                <p className="text-sm text-blue-200 mb-1">{ar ? "رقم الدور" : "Queue #"}</p>
-                <p className="text-[100px] font-black leading-none">{activeWithDoctor.queueNumber}</p>
+                <p className="text-sm text-blue-300/70">{ar ? "رقم الدور" : "Queue"}</p>
+                <p className="text-[100px] font-black leading-none text-white">{activeWithDoc.queueNumber}</p>
               </div>
-              <div className="h-24 w-0.5 bg-white/20" />
+              <div className="h-20 w-0.5 bg-white/15" />
               <div className="text-start">
-                <p className="text-sm text-blue-200 mb-2">{ar ? "المريض" : "Patient"}</p>
-                <p className="text-4xl font-bold">{activeWithDoctor.patient.name}</p>
-                {activeWithDoctor.patient.nameAr && (
-                  <p className="text-2xl text-blue-200 mt-1">{activeWithDoctor.patient.nameAr}</p>
+                <p className="text-4xl font-bold">{activeWithDoc.patient.name}</p>
+                {activeWithDoc.patient.nameAr && (
+                  <p className="text-2xl text-blue-200/70 mt-1">{activeWithDoc.patient.nameAr}</p>
                 )}
               </div>
             </div>
           </div>
         )}
 
-        {/* No active patient */}
-        {!activeCalled && !activeWithDoctor && (
+        {/* ── NO ACTIVE PATIENT ── */}
+        {!activeCalled && !activeWithDoc && (
           <div className="rounded-3xl bg-white/5 border border-white/10 p-12 text-center">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-white/10">
-              <Stethoscope className="h-10 w-10 text-white/30" />
-            </div>
-            <p className="text-2xl text-white/30 font-medium">
-              {ar ? "لا يوجد مريض حالياً" : "No patient currently"}
-            </p>
+            <Stethoscope className="h-12 w-12 mx-auto mb-3 text-white/20" />
+            <p className="text-2xl text-white/30">{ar ? "لا يوجد مريض حالياً" : "No patient currently"}</p>
           </div>
         )}
 
-        {/* On Hold section */}
-        {roomData.onHold && roomData.onHold.length > 0 && (
-          <div className="rounded-2xl bg-amber-500/8 border border-amber-500/20 overflow-hidden">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-amber-500/15">
-              <span className="text-xl">🔬</span>
-              <h2 className="text-base font-bold text-amber-300">
-                {ar ? "في انتظار فحص خارجي" : "Waiting for External Test"} — {roomData.onHold.length}
-              </h2>
-            </div>
-            <div className="flex flex-wrap gap-4 px-6 py-4">
-              {roomData.onHold.map(apt => (
-                <div key={apt.id} className="flex items-center gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-300 font-black">
-                    {apt.queueNumber}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{apt.patient.name}</p>
-                    <p className="text-xs text-amber-400/80">{(apt as any).holdReason ?? (ar ? "فحص خارجي" : "External test")}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* ── WAITING QUEUE ── */}
+        <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-white/10">
+            <Clock className="h-5 w-5 text-amber-400" />
+            <h2 className="text-lg font-bold text-amber-300">
+              {ar ? "في الانتظار" : "Waiting"} — {roomData.waiting.length}
+            </h2>
           </div>
-        )}
-
-        {/* Waiting + Done columns */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-
-          <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-            <div className="flex items-center gap-3 px-6 py-4 bg-amber-500/15 border-b border-amber-500/20">
-              <Clock className="h-5 w-5 text-amber-400" />
-              <h2 className="text-lg font-bold text-amber-300">
-                {ar ? "في الانتظار" : "Waiting"} — {roomData.waiting.length}
-              </h2>
-            </div>
+          {roomData.waiting.length === 0 ? (
+            <p className="px-6 py-10 text-center text-white/25 text-xl">{ar ? "لا أحد في الانتظار" : "Nobody waiting"}</p>
+          ) : (
             <div className="divide-y divide-white/5">
-              {roomData.waiting.length === 0 ? (
-                <p className="px-6 py-10 text-center text-white/30 text-lg">
-                  {ar ? "لا أحد في الانتظار" : "Nobody waiting"}
-                </p>
-              ) : roomData.waiting.map((apt) => (
+              {roomData.waiting.map(apt => (
                 <div key={apt.id} className="flex items-center gap-5 px-6 py-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 text-2xl font-black">
                     {apt.queueNumber}
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-white">{apt.patient.name}</p>
-                    {apt.patient.nameAr && <p className="text-sm text-white/50">{apt.patient.nameAr}</p>}
+                    {apt.patient.nameAr && <p className="text-sm text-white/40">{apt.patient.nameAr}</p>}
                   </div>
-                  <span className="ms-auto rounded-full bg-white/10 px-3 py-1 text-xs text-white/60">
+                  <span className="ms-auto rounded-full bg-white/8 px-3 py-1 text-xs text-white/50">
                     {typeLabel[apt.type] ?? apt.type}
                   </span>
                 </div>
               ))}
             </div>
-          </div>
+          )}
+        </div>
 
-          <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-            <div className="flex items-center gap-3 px-6 py-4 bg-green-500/15 border-b border-green-500/20">
-              <CheckCircle2 className="h-5 w-5 text-green-400" />
-              <h2 className="text-lg font-bold text-green-300">
-                {ar ? "انتهوا" : "Completed"} — {roomData.done.length}
+        {/* ── ON HOLD – only show if there are patients ── */}
+        {onHold.length > 0 && (
+          <div className="rounded-2xl bg-orange-500/8 border border-orange-500/20 overflow-hidden">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-orange-500/15">
+              <FlaskConical className="h-5 w-5 text-orange-400" />
+              <h2 className="text-base font-bold text-orange-300">
+                {ar ? "في فحص خارجي" : "External Test"} — {onHold.length}
               </h2>
             </div>
-            <div className="divide-y divide-white/5 max-h-80 overflow-y-auto">
-              {roomData.done.length === 0 ? (
-                <p className="px-6 py-10 text-center text-white/30 text-lg">{ar ? "لا أحد" : "None yet"}</p>
-              ) : [...roomData.done].reverse().map((apt) => (
-                <div key={apt.id} className="flex items-center gap-4 px-6 py-3.5">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-green-400" />
-                  <p className="text-base text-white/70 font-medium">{apt.patient.name}</p>
-                  <span className="ms-auto rounded-full bg-green-500/15 px-3 py-0.5 text-sm text-green-400 font-mono font-bold">
-                    #{apt.queueNumber}
-                  </span>
+            <div className="flex flex-wrap gap-3 px-6 py-4">
+              {onHold.map(apt => (
+                <div key={apt.id} className="flex items-center gap-3 rounded-xl bg-orange-500/10 border border-orange-500/20 px-4 py-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/20 text-orange-300 font-black text-sm">
+                    {apt.queueNumber}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{apt.patient.name}</p>
+                    <p className="text-xs text-orange-400/70">{apt.holdReason ?? (ar ? "فحص" : "Test")}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        )}
 
-        <p className="text-center text-xs text-white/20">
-          {ar ? "يتجدد تلقائياً كل 10 ثوانٍ" : "Auto-refreshes every 10 seconds"} — ClinicPro
+        <p className="text-center text-xs text-white/15">
+          {ar ? "يتجدد كل ثانيتين" : "Refreshes every 2 seconds"} — ClinicPro
         </p>
       </div>
     </div>
