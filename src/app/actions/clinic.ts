@@ -6,8 +6,9 @@ import { generateId } from "@/lib/utils";
 
 // ─── Queue / Arrival ───────────────────────────────────────────
 export async function getTodayQueue(doctorId: string) {
-  const start = new Date(); start.setHours(0, 0, 0, 0);
-  const end = new Date(); end.setHours(23, 59, 59, 999);
+  const now = new Date();
+  const start = new Date(now); start.setHours(-2, 0, 0, 0);
+  const end = new Date(now); end.setHours(25, 59, 59, 999);
 
   return prisma.appointment.findMany({
     where: { doctorId, date: { gte: start, lte: end } },
@@ -160,8 +161,9 @@ export async function getDoctorForDisplay(doctorId: string) {
 }
 
 export async function getWaitingRoomData(doctorId: string) {
-  const start = new Date(); start.setHours(0, 0, 0, 0);
-  const end = new Date(); end.setHours(23, 59, 59, 999);
+  const now = new Date();
+  const start = new Date(now); start.setHours(-2, 0, 0, 0);
+  const end = new Date(now); end.setHours(25, 59, 59, 999);
 
   const appointments = await prisma.appointment.findMany({
     where: { doctorId, date: { gte: start, lte: end }, status: { not: "completed" } },
@@ -234,9 +236,10 @@ export async function getCompletedAppointments(doctorId: string) {
 }
 
 export async function getTodaySyncedQueue(doctorId: string) {
-  // Returns today's appointments for live queue management
-  const start = new Date(); start.setHours(0, 0, 0, 0);
-  const end = new Date(); end.setHours(23, 59, 59, 999);
+  // Wide window to handle timezone differences between server/client
+  const now = new Date();
+  const start = new Date(now); start.setHours(-2, 0, 0, 0); // 2 hours before midnight
+  const end = new Date(now); end.setHours(25, 59, 59, 999); // 2 hours after midnight
 
   return prisma.appointment.findMany({
     where: { doctorId, date: { gte: start, lte: end }, status: { not: "completed" } },

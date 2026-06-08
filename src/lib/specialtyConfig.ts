@@ -8,6 +8,7 @@ export interface SpecialtyConfig {
   hasHoldForTest: boolean;
   holdOptions: HoldOption[];
   holdSectionTitle?: { ar: string; en: string };
+  secretaryCanManageQueue?: boolean; // Secretary can call next & complete sessions
 }
 
 export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
@@ -68,6 +69,7 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   // ── Dentistry ────────────────────────────────────────────────
   dentistry: {
     hasHoldForTest: true,
+    secretaryCanManageQueue: true, // Dentist usually can't leave patient to use computer
     holdSectionTitle: { ar: "إرسال لفحص أسنان", en: "Dental Test" },
     holdOptions: [
       { value: "xray_panoramic", labelAr: "أشعة بانورامية للأسنان", labelEn: "Panoramic X-Ray" },

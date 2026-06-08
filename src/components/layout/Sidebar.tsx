@@ -24,6 +24,7 @@ export default function Sidebar({ locale, isOpen, onClose, role="admin", doctorS
     { href: `/${locale}/secretary`, icon: ClipboardList, label: ar ? "الاستقبال" : "Reception" },
     { href: `/${locale}/doctor/patients`, icon: Users, label: td("myPatients") },
     { href: `/${locale}/doctor/appointments`, icon: Calendar, label: ar ? "سجل المواعيد" : "Archive" },
+    { href: `/${locale}/doctor/recurring`, icon: Users, label: ar ? "المرضى الدائمون" : "Recurring Patients" },
   ];
   const secretaryNav = [
     { href: `/${locale}/secretary`, icon: ClipboardList, label: ar ? "الاستقبال" : "Reception", exact: true },

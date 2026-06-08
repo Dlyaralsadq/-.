@@ -1,7 +1,8 @@
 import { requireAuth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { getAllUpcomingAppointments, getDoctorForDisplay } from "@/app/actions/clinic";
+import { getAllUpcomingAppointments, getDoctorForDisplay, getTodaySyncedQueue } from "@/app/actions/clinic";
+import { getSpecialtyConfig } from "@/lib/specialtyConfig";
 import { getDoctorByUserId, getDoctorPatients } from "@/app/actions/doctorPortal";
 import SecretaryClient from "./SecretaryClient";
 import { prisma } from "@/lib/prisma";
@@ -23,17 +24,22 @@ export default async function SecretaryPage({ params }: { params: Promise<{ loca
 
   if (!doctorId) redirect(`/${locale}/login`);
 
-  const [appointments, doctor, patients] = await Promise.all([
+  const [appointments, todayQueue, patients] = await Promise.all([
     getAllUpcomingAppointments(doctorId),
-    getDoctorForDisplay(doctorId),
+    getTodaySyncedQueue(doctorId),
     getDoctorPatients(doctorId),
   ]);
 
+  const doctorDoc = await (await import("@/lib/prisma")).prisma.doctor.findUnique({ where: { id: doctorId! }, include: { specialty: true } });
+  const specialtyConfig = doctorDoc ? getSpecialtyConfig(doctorDoc.specialty.name, (doctorDoc.specialty as any).config) : undefined;
+
   return (
-    <DashboardLayout locale={locale} userName={session.name} role={session.role} doctorSpecialty={doctor?.specialty?.name ?? undefined}>
+    <DashboardLayout locale={locale} userName={session.name} role={session.role} doctorSpecialty={doctorDoc?.specialty?.name ?? undefined}>
       <SecretaryClient
         appointments={appointments as any}
-        doctor={doctor}
+        todayQueue={todayQueue as any}
+        doctor={doctorDoc}
+        specialtyConfig={specialtyConfig}
         patients={patients}
         doctorId={doctorId}
         locale={locale}

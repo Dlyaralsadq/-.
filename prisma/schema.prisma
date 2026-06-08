@@ -79,6 +79,13 @@ model Patient {
   doctorId         String?
   doctor           Doctor?   @relation(fields: [doctorId], references: [id])
   isActive         Boolean   @default(true)
+  // Recurring treatment tracking (Dentistry, Orthodontics, etc.)
+  isRecurring      Boolean   @default(false)
+  treatmentType    String?   // e.g. "orthodontics", "implant", "whitening"
+  totalSessions    Int?      // planned total sessions
+  sessionsCompleted Int?     @default(0)
+  nextVisitDate    DateTime?
+  recurringWeeks   Int?      // weeks between visits
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   appointments     Appointment[]

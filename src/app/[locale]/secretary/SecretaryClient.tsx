@@ -6,13 +6,14 @@ import Link from "next/link";
 import {
   CalendarPlus, CheckCircle2, Clock, User, Stethoscope,
   Phone, Search, DoorOpen, Banknote, MonitorPlay,
-  UserCheck, AlertCircle, CheckCheck, ChevronDown, ChevronRight, FlaskConical, RotateCcw
+  UserCheck, AlertCircle, CheckCheck, ChevronDown, ChevronRight, FlaskConical, RotateCcw, PlayCircle
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import { checkInPatient, quickBookAppointment, confirmPatientEntry, markPayment, patientReturnedFromTest } from "@/app/actions/clinic";
+import { checkInPatient, quickBookAppointment, confirmPatientEntry, markPayment, patientReturnedFromTest, callNextPatient, completeAppointment, callOnHoldPatient } from "@/app/actions/clinic";
+import type { SpecialtyConfig } from "@/lib/specialtyConfig";
 
 interface Appointment {
   id: string; appointmentNumber: string; date: Date; type: string;
@@ -64,8 +65,9 @@ function formatTime(date: Date): string {
   return new Date(date).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function SecretaryClient({ appointments, doctor, patients, doctorId, locale }: {
-  appointments: Appointment[]; doctor: any; patients: any[]; doctorId: string; locale: string;
+export default function SecretaryClient({ appointments, todayQueue, doctor, patients, doctorId, locale, specialtyConfig }: {
+  appointments: Appointment[]; todayQueue?: Appointment[]; doctor: any; patients: any[];
+  doctorId: string; locale: string; specialtyConfig?: SpecialtyConfig;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -220,11 +222,82 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
         </div>
       )}
 
+      {/* Dentistry: Secretary Queue Management Panel */}
+      {specialtyConfig?.secretaryCanManageQueue && (() => {
+        const queue = todayQueue ?? [];
+        const qCalled  = queue.find(a => a.arrivalStatus === "called");
+        const qCurrent = queue.find(a => a.arrivalStatus === "with_doctor");
+        const qWaiting = queue.filter(a => a.arrivalStatus === "arrived");
+        return (
+          <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-indigo-500/15">
+              <span className="text-lg">🦷</span>
+              <h2 className="text-sm font-semibold text-indigo-300">{ar ? "إدارة الطابور — صلاحية السكرتير" : "Queue Management — Secretary Mode"}</h2>
+              <span className="ms-auto text-xs text-indigo-400/60">{ar ? `${qWaiting.length} في الانتظار` : `${qWaiting.length} waiting`}</span>
+            </div>
+            <div className="p-4 space-y-3">
+              {/* Currently with doctor */}
+              {qCurrent && (
+                <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4">
+                  <p className="text-xs text-blue-400/70 mb-2 uppercase tracking-wider">{ar ? "المريض الحالي" : "Current Patient"}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600/20 text-white font-bold">{qCurrent.patient.name[0]}</div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{qCurrent.patient.name}</p>
+                        <p className="text-xs text-slate-500">#{qCurrent.queueNumber}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="success" className="gap-1.5 text-xs"
+                        onClick={async () => {
+                          setLoading(true);
+                          await completeAppointment(qCurrent.id, doctorId, {});
+                          setLoading(false); router.refresh();
+                        }} disabled={loading}>
+                        <CheckCheck className="h-3.5 w-3.5" />{ar ? "إنهاء الجلسة" : "Complete"}
+                      </Button>
+                      {qWaiting.length > 0 && (
+                        <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                          onClick={() => act(() => callNextPatient(doctorId))} disabled={loading}>
+                          <PlayCircle className="h-3.5 w-3.5" />{ar ? "التالي" : "Next"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Called patient */}
+              {qCalled && !qCurrent && (
+                <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
+                    <p className="text-sm text-yellow-300">{qCalled.patient.name} — {ar ? "تم النداء" : "Called"}</p>
+                  </div>
+                  <Button size="sm" variant="success" className="gap-1 text-xs"
+                    onClick={() => act(() => confirmPatientEntry(qCalled.id, doctorId))} disabled={loading}>
+                    <DoorOpen className="h-3.5 w-3.5" />{ar ? "دخل" : "Entered"}
+                  </Button>
+                </div>
+              )}
+              {/* No current patient */}
+              {!qCurrent && !qCalled && (
+                <Button className="w-full gap-2" disabled={qWaiting.length === 0 || loading}
+                  onClick={() => act(() => callNextPatient(doctorId))}>
+                  <PlayCircle className="h-4 w-4" />
+                  {qWaiting.length > 0 ? (ar ? `استدعاء المريض التالي (${qWaiting.length})` : `Call Next (${qWaiting.length})`) : (ar ? "لا يوجد مرضى في الانتظار" : "No patients waiting")}
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Search */}
       <div className="card p-3">
         <div className="relative max-w-sm">
           <Search className="absolute inset-y-0 start-3 my-auto h-4 w-4 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
+          <input value={search} dir="auto" onChange={e => setSearch(e.target.value)}
             placeholder={ar ? "البحث عن مريض..." : "Search patient..."}
             className="form-input ps-9 pe-3 py-2 text-sm w-full" />
         </div>

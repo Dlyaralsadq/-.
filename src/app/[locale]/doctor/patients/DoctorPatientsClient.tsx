@@ -50,6 +50,7 @@ export default function DoctorPatientsClient({ patients, doctorId, locale }: {
     const fd = new FormData(e.currentTarget);
     const data = {
       name: fd.get("name") as string,
+      isRecurring: fd.get("isRecurring") === "on",
       nameAr: fd.get("nameAr") as string || undefined,
       gender: fd.get("gender") as string,
       phone: fd.get("phone") as string,
@@ -101,7 +102,7 @@ export default function DoctorPatientsClient({ patients, doctorId, locale }: {
           </span>
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            dir="auto" onChange={e => setSearch(e.target.value)}
             placeholder={t("searchPlaceholder")}
             className="w-full rounded-lg border border-gray-300 ps-9 pe-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
@@ -202,6 +203,23 @@ export default function DoctorPatientsClient({ patients, doctorId, locale }: {
           </div>
           <Textarea name="medicalHistory" label={t("medicalHistory")} defaultValue={editPatient?.medicalHistory ?? ""} rows={2} />
           <Textarea name="allergies" label={t("allergies")} defaultValue={editPatient?.allergies ?? ""} rows={2} />
+
+          {/* Recurring patient toggle */}
+          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/6 p-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div className="relative">
+                <input type="checkbox" name="isRecurring"
+                  defaultChecked={(editPatient as any)?.isRecurring ?? false}
+                  className="sr-only peer" id="is-recurring" />
+                <div className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-indigo-600 transition-colors" />
+                <div className="absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full transition-all peer-checked:translate-x-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">{locale === "ar" ? "مريض دائم / علاج متكرر" : "Recurring Patient / Treatment"}</p>
+                <p className="text-xs text-white/30">{locale === "ar" ? "مثل تقويم الأسنان أو زراعة الأسنان" : "e.g. Orthodontics, implants"}</p>
+              </div>
+            </label>
+          </div>
           <Textarea name="notes" label={locale === "ar" ? "ملاحظات" : "Notes"} defaultValue={(editPatient as any)?.notes ?? ""} rows={2} placeholder={locale === "ar" ? "أي ملاحظات إضافية عن المريض..." : "Any additional notes about the patient..."} />
         </form>
       </Modal>

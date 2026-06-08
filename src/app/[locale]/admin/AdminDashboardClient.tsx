@@ -16,12 +16,12 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   createDoctorWithAccount, createAccountForDoctor,
   resetDoctorPassword, toggleDoctorStatus, deleteDoctorAndAccount,
-  createSecretaryAccount,
+  createSecretaryAccount, updateDoctorAndAccount,
 } from "@/app/actions/admin";
 
 interface Specialty { id: string; name: string; nameAr: string; }
 interface Doctor {
-  id: string; name: string; nameAr: string; phone: string | null;
+  id: string; name: string; nameAr: string; phone: string | null; email: string | null;
   specialtyId: string; specialty: { name: string; nameAr: string };
   licenseNumber: string | null; experienceYears: number | null;
   consultationFee: number | null; workingDays: string | null;
@@ -46,6 +46,8 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
   const ar = locale === "ar";
 
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDoctor, setEditDoctor] = useState<Doctor | null>(null);
   const [accOpen, setAccOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [secOpen, setSecOpen] = useState(false);
@@ -56,6 +58,26 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
   const [toast, setToast] = useState("");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
+
+  const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editDoctor) return;
+    const fd = new FormData(e.currentTarget);
+    const ok = await act(() => updateDoctorAndAccount(editDoctor.id, {
+      name: fd.get("name") as string,
+      nameAr: fd.get("nameAr") as string,
+      phone: fd.get("phone") as string || undefined,
+      email: fd.get("email") as string || undefined,
+      specialtyId: fd.get("specialtyId") as string,
+      licenseNumber: fd.get("licenseNumber") as string || undefined,
+      experienceYears: fd.get("exp") ? parseInt(fd.get("exp") as string) : undefined,
+      consultationFee: fd.get("fee") ? parseFloat(fd.get("fee") as string) : undefined,
+      workingDays: fd.get("days") as string || undefined,
+      workingHoursStart: fd.get("from") as string || undefined,
+      workingHoursEnd: fd.get("to") as string || undefined,
+    }));
+    if (ok) { setEditOpen(false); setEditDoctor(null); showToast(ar ? "تم تحديث بيانات الطبيب" : "Doctor updated"); }
+  };
 
   const act = async (fn: () => Promise<{ success: boolean; error?: string }>) => {
     setLoading(true); setErrors({});
@@ -255,6 +277,11 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
                           <span className="text-xs hidden sm:inline">{ar ? "تفعيل" : "Activate"}</span>
                         </Button>
                       )}
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-indigo-400 hover:bg-indigo-500/10"
+                        title={ar ? "تعديل بيانات الطبيب" : "Edit doctor"}
+                        onClick={() => { setEditDoctor(doc); setEditOpen(true); }}>
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:bg-red-500/10"
                         onClick={() => setDeleteId(doc.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
@@ -307,6 +334,38 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
               <Input name="username" label={ar ? "اسم المستخدم" : "Username"} required error={errors.username} placeholder="dr.username" />
               <Input name="password" type="password" label={ar ? "كلمة المرور" : "Password"} required placeholder="••••••••" />
             </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Doctor Modal */}
+      <Modal isOpen={editOpen} onClose={() => { setEditOpen(false); setEditDoctor(null); setErrors({}); }}
+        title={ar ? "تعديل بيانات الطبيب" : "Edit Doctor"} size="xl"
+        footer={<>
+          <Button variant="secondary" onClick={() => { setEditOpen(false); setEditDoctor(null); }} disabled={loading}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="submit" form="edit-form" loading={loading}>{ar ? "حفظ التعديلات" : "Save Changes"}</Button>
+        </>}>
+        <form id="edit-form" onSubmit={handleEdit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Input name="nameAr" label={ar ? "الاسم بالعربية" : "الاسم بالعربية"} defaultValue={editDoctor?.nameAr} required />
+            <Input name="name" label={ar ? "الاسم بالإنجليزية" : "Full Name"} defaultValue={editDoctor?.name} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Select name="specialtyId" label={ar ? "التخصص" : "Specialty"} options={specOpts} defaultValue={editDoctor?.specialtyId} required />
+            <Input name="phone" type="tel" label={ar ? "الهاتف" : "Phone"} defaultValue={editDoctor?.phone ?? ""} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input name="email" type="email" label={ar ? "البريد" : "Email"} defaultValue={editDoctor?.email ?? ""} />
+            <Input name="licenseNumber" label={ar ? "رقم الترخيص" : "License #"} defaultValue={editDoctor?.licenseNumber ?? ""} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Input name="exp" type="number" min="0" label={ar ? "سنوات الخبرة" : "Experience"} defaultValue={editDoctor?.experienceYears?.toString() ?? ""} />
+            <Input name="fee" type="number" min="0" label={ar ? "رسوم الكشف" : "Fee"} defaultValue={editDoctor?.consultationFee?.toString() ?? ""} />
+            <Select name="days" label={ar ? "أيام العمل" : "Working Days"} options={daysOpts} defaultValue={editDoctor?.workingDays ?? ""} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input name="from" type="time" label={ar ? "من" : "From"} defaultValue={editDoctor?.workingHoursStart ?? "08:00"} />
+            <Input name="to" type="time" label={ar ? "إلى" : "To"} defaultValue={editDoctor?.workingHoursEnd ?? "16:00"} />
           </div>
         </form>
       </Modal>
