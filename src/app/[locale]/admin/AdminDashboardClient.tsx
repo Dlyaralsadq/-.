@@ -143,7 +143,7 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
           { n: stats.totalSpecialties, label: ar ? "التخصصات" : "Specialties", icon: ClipboardList, color: "violet" },
           { n: stats.doctorsWithAccounts, label: ar ? "لديهم حسابات" : "With Accounts", icon: ShieldCheck, color: "blue" },
         ].map(({ n, label, icon: Icon, color }) => (
-          <div key={label} className="card p-4">
+          <div key={label} className="card-premium p-4 hover:border-white/12 transition-colors">
             <div className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-${color}-500/10`}>
               <Icon className={`h-4.5 w-4.5 text-${color}-400`} />
             </div>
@@ -154,7 +154,7 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
       </div>
 
       {/* Doctors table */}
-      <div className="card overflow-hidden">
+      <div className="card-premium overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2536]">
           <h2 className="text-sm font-semibold text-white">{ar ? "الأطباء المسجلون" : "Registered Doctors"}</h2>
           <span className="text-xs text-slate-500">{doctors.length} {ar ? "طبيب" : "doctors"}</span>
