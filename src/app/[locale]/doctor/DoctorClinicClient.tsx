@@ -41,7 +41,8 @@ export default function DoctorClinicClient({ doctor, queue, locale, specialtyCon
   const [consultOpen, setConsultOpen] = useState(false);
   const [activeApt, setActiveApt] = useState<Appointment | null>(null);
   const [saving, setSaving] = useState(false);
-  const [showHoldMenu, setShowHoldMenu] = useState(false);
+  const [holdMenuOpen, setHoldMenuOpen] = useState(false);
+  const [holdTargetId, setHoldTargetId] = useState<string | null>(null);
 
   const ar = locale === "ar";
 
@@ -176,28 +177,12 @@ export default function DoctorClinicClient({ doctor, queue, locale, specialtyCon
                     <NotebookPen className="h-4 w-4" />{ar ? "تسجيل وإنهاء الكشف" : "Record & Complete"}
                   </Button>
                   {specialtyConfig?.hasHoldForTest && specialtyConfig.holdOptions.length > 0 && (
-                    <div className="relative">
-                      <Button variant="outline" className="gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-                        onClick={() => setShowHoldMenu(!showHoldMenu)}>
-                        <FlaskConical className="h-4 w-4" />
-                        {ar ? specialtyConfig.holdSectionTitle?.ar ?? "إرسال لفحص" : specialtyConfig.holdSectionTitle?.en ?? "Send for Test"}
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      </Button>
-                      {showHoldMenu && (
-                        <div className={`absolute top-full mt-1 z-50 w-64 rounded-xl bg-[#111827] border border-[#2a3347] shadow-2xl py-1 ${ar ? "right-0" : "left-0"}`}>
-                          <p className="px-3 py-2 text-xs font-semibold text-amber-400 border-b border-[#2a3347]">
-                            {ar ? "اختر الفحص المطلوب" : "Select required test"}
-                          </p>
-                          {specialtyConfig.holdOptions.map(opt => (
-                            <button key={opt.value}
-                              onClick={() => { setShowHoldMenu(false); act(() => holdPatientForTest(current.id, doctor.id, ar ? opt.labelAr : opt.labelEn)); }}
-                              className="w-full text-start px-4 py-2.5 text-sm text-slate-300 hover:bg-amber-500/10 hover:text-amber-300 transition-colors">
-                              {ar ? opt.labelAr : opt.labelEn}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <Button variant="outline" className="gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                      onClick={() => { setHoldTargetId(current.id); setHoldMenuOpen(true); }}>
+                      <FlaskConical className="h-4 w-4" />
+                      {ar ? specialtyConfig.holdSectionTitle?.ar ?? "إرسال لفحص" : specialtyConfig.holdSectionTitle?.en ?? "Send for Test"}
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
                   )}
                   {waiting.length > 0 && (
                     <Button variant="outline" className="gap-1.5" onClick={() => act(() => callNextPatient(doctor.id))} disabled={isPending}>
@@ -289,6 +274,40 @@ export default function DoctorClinicClient({ doctor, queue, locale, specialtyCon
           </div>
         </div>
       </div>
+
+      {/* Hold for Test Modal */}
+      {holdMenuOpen && holdTargetId && specialtyConfig?.holdOptions && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setHoldMenuOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-[#2a3347] bg-[#111827] shadow-2xl overflow-hidden animate-fade-up">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a3347] bg-amber-500/8">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="h-5 w-5 text-amber-400" />
+                <h3 className="font-semibold text-amber-300 text-sm">
+                  {ar ? specialtyConfig.holdSectionTitle?.ar ?? "إرسال لفحص" : specialtyConfig.holdSectionTitle?.en ?? "Send for Test"}
+                </h3>
+              </div>
+              <button onClick={() => setHoldMenuOpen(false)} className="text-slate-500 hover:text-slate-300">
+                <span className="text-lg leading-none">×</span>
+              </button>
+            </div>
+            <div className="p-2">
+              {specialtyConfig.holdOptions.map(opt => (
+                <button key={opt.value}
+                  onClick={() => {
+                    setHoldMenuOpen(false);
+                    setHoldTargetId(null);
+                    act(() => holdPatientForTest(holdTargetId!, doctor.id, ar ? opt.labelAr : opt.labelEn));
+                  }}
+                  className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-300 hover:bg-amber-500/10 hover:text-amber-200 transition-colors text-start">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 text-xs font-bold">🔬</span>
+                  {ar ? opt.labelAr : opt.labelEn}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Consultation Modal */}
       <Modal isOpen={consultOpen} onClose={() => setConsultOpen(false)}
