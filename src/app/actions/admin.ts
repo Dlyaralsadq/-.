@@ -138,9 +138,16 @@ export async function toggleDoctorStatus(doctorId: string, isActive: boolean) {
     data: { isActive },
   });
 
+  // Toggle doctor's own account
   if (doctor.userId) {
     await prisma.user.update({ where: { id: doctor.userId }, data: { isActive } });
   }
+
+  // Toggle all secretaries linked to this doctor
+  await prisma.user.updateMany({
+    where: { linkedDoctorId: doctorId, role: "secretary" },
+    data: { isActive },
+  });
 
   revalidatePath("/[locale]/admin", "layout");
   return { success: true };
