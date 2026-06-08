@@ -293,7 +293,7 @@ export default function SecretaryClient({ appointments, doctor, patients, doctor
                           const cfg = STATUS_CFG[apt.arrivalStatus] ?? STATUS_CFG.pending;
                           const tl = TYPE_LABEL[apt.type];
                           return (
-                            <tr key={apt.id}>
+                            <tr key={apt.id} className={(apt as any).returnedFromTest && apt.arrivalStatus === "arrived" ? "bg-emerald-500/4" : ""}>
                               <td>
                                 {apt.queueNumber ? (
                                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600/20 border border-indigo-500/20 text-indigo-300 font-bold text-xs">

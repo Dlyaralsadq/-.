@@ -22,6 +22,7 @@ interface Appointment {
   type: string; status: string; arrivalStatus: string;
   queueNumber: number | null; reason: string | null; isPaid: boolean;
   holdReason?: string | null;
+  returnedFromTest?: boolean;
   diagnosis: string | null; prescription: string | null; notes: string | null;
   patient: { id: string; name: string; nameAr: string | null; phone: string; bloodType: string | null; };
 }
@@ -222,6 +223,12 @@ export default function DoctorClinicClient({ doctor, queue, locale, specialtyCon
                   <Clock className="h-4 w-4 text-amber-400" />
                   {ar ? "قائمة الانتظار" : "Waiting Queue"}
                   <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-2 py-0.5 text-xs text-amber-400 font-bold">{waiting.length}</span>
+                  {waiting.filter(a => (a as any).returnedFromTest).length > 0 && (
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-xs text-emerald-400">
+                      <FlaskConical className="h-3 w-3" />
+                      {waiting.filter(a => (a as any).returnedFromTest).length} {ar ? "عائد" : "returning"}
+                    </span>
+                  )}
                 </h2>
                 {!current && !called && (
                   <Button size="sm" className="gap-1" onClick={() => act(() => callNextPatient(doctor.id))} disabled={isPending}>
@@ -231,12 +238,23 @@ export default function DoctorClinicClient({ doctor, queue, locale, specialtyCon
               </div>
               <div className="divide-y divide-[#1e2536]">
                 {waiting.map(apt => (
-                  <div key={apt.id} className="flex items-center gap-4 px-5 py-3 hover:bg-white/2 transition-colors">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 border border-amber-500/20 text-amber-400 font-black text-sm">
+                  <div key={apt.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${(apt as any).returnedFromTest ? "bg-emerald-500/6 border-b border-emerald-500/15" : "hover:bg-white/2"}`}>
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-black text-sm ${
+                      (apt as any).returnedFromTest
+                        ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300"
+                        : "bg-amber-500/15 border border-amber-500/20 text-amber-400"
+                    }`}>
                       {apt.queueNumber}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{apt.patient.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-white truncate">{apt.patient.name}</p>
+                        {(apt as any).returnedFromTest && (
+                          <span className="shrink-0 flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-xs text-emerald-400 font-semibold">
+                            <FlaskConical className="h-3 w-3" />{ar ? "عاد من الفحص" : "Returned"}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500">{apt.patient.phone}</p>
                     </div>
                     <p className="text-xs text-slate-500 font-mono shrink-0">{formatTime(apt.date, locale)}</p>

@@ -45,15 +45,14 @@ export async function callNextPatient(doctorId: string) {
     data: { arrivalStatus: "done", status: "completed" },
   });
 
-  // Find next arrived patient
+  // Prioritize returnedFromTest patients, then by queue number
   const next = await prisma.appointment.findFirst({
     where: { doctorId, arrivalStatus: "arrived" },
-    orderBy: { queueNumber: "asc" },
+    orderBy: [{ returnedFromTest: "desc" }, { queueNumber: "asc" }],
     include: { patient: true },
   });
 
   if (next) {
-    // Set to "called" — blinking on screen until confirmed
     await prisma.appointment.update({
       where: { id: next.id },
       data: { arrivalStatus: "called" },
@@ -277,18 +276,37 @@ export async function patientReturnedFromTest(appointmentId: string, doctorId: s
   const apt = await prisma.appointment.findFirst({ where: { id: appointmentId, doctorId, arrivalStatus: "on_hold" } });
   if (!apt) return { success: false };
 
-  // Get next queue number for today
+  // Find minimum queue number of current waiting patients to place before them
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const end = new Date(); end.setHours(23, 59, 59, 999);
-  const maxQueue = await prisma.appointment.aggregate({
-    where: { doctorId, date: { gte: start, lte: end }, queueNumber: { not: null } },
-    _max: { queueNumber: true },
+
+  const firstWaiting = await prisma.appointment.findFirst({
+    where: { doctorId, date: { gte: start, lte: end }, arrivalStatus: "arrived" },
+    orderBy: { queueNumber: "asc" },
   });
-  const nextQueue = (maxQueue._max.queueNumber ?? 0) + 1;
+
+  // Priority: place before the first waiting patient (use a lower queue number)
+  // If nobody waiting, get next number after current max
+  let priorityQueue: number;
+  if (firstWaiting?.queueNumber && firstWaiting.queueNumber > 1) {
+    // Shift all current waiting patients up by 1, then take the first waiting slot
+    await prisma.appointment.updateMany({
+      where: { doctorId, date: { gte: start, lte: end }, arrivalStatus: "arrived" },
+      data: { queueNumber: { increment: 1 } },
+    });
+    priorityQueue = firstWaiting.queueNumber; // now the slot is free
+  } else {
+    // No one waiting or queue is at 1; find next available number
+    const maxQueue = await prisma.appointment.aggregate({
+      where: { doctorId, date: { gte: start, lte: end }, queueNumber: { not: null } },
+      _max: { queueNumber: true },
+    });
+    priorityQueue = (maxQueue._max.queueNumber ?? 0) + 1;
+  }
 
   await prisma.appointment.update({
     where: { id: appointmentId },
-    data: { arrivalStatus: "arrived", holdReason: null, queueNumber: nextQueue },
+    data: { arrivalStatus: "arrived", holdReason: null, queueNumber: priorityQueue, returnedFromTest: true },
   });
 
   revalidatePath("/[locale]/doctor", "page");
@@ -307,7 +325,7 @@ export async function callOnHoldPatient(appointmentId: string, doctorId: string)
   // Set on_hold patient to called directly
   await prisma.appointment.update({
     where: { id: appointmentId },
-    data: { arrivalStatus: "called", holdReason: null },
+    data: { arrivalStatus: "called", holdReason: null, returnedFromTest: true },
   });
 
   revalidatePath("/[locale]/doctor", "page");

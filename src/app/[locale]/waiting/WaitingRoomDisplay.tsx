@@ -7,6 +7,7 @@ import { Stethoscope, Clock, FlaskConical } from "lucide-react";
 interface Appointment {
   id: string; queueNumber: number | null; arrivalStatus: string;
   holdReason?: string | null;
+  returnedFromTest?: boolean;
   patient: { name: string; nameAr: string | null; };
   type: string;
 }
@@ -158,17 +159,30 @@ export default function WaitingRoomDisplay({ roomData, doctor, locale }: {
           ) : (
             <div className="divide-y divide-white/5">
               {roomData.waiting.map(apt => (
-                <div key={apt.id} className="flex items-center gap-5 px-6 py-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 text-2xl font-black">
+                <div key={apt.id} className={`flex items-center gap-5 px-6 py-4 ${apt.returnedFromTest ? "bg-emerald-500/8 border-s-4 border-emerald-500/60" : ""}`}>
+                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl font-black ${
+                    apt.returnedFromTest
+                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/30"
+                      : "bg-amber-500/20 text-amber-300"
+                  }`}>
                     {apt.queueNumber}
                   </div>
-                  <div>
-                    <p className="text-lg font-semibold text-white">{apt.patient.name}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-lg font-semibold text-white">{apt.patient.name}</p>
+                      {apt.returnedFromTest && (
+                        <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-sm text-emerald-400 font-semibold">
+                          🔬 {ar ? "عاد من الفحص — أولوية" : "Returned — Priority"}
+                        </span>
+                      )}
+                    </div>
                     {apt.patient.nameAr && <p className="text-sm text-white/40">{apt.patient.nameAr}</p>}
                   </div>
-                  <span className="ms-auto rounded-full bg-white/8 px-3 py-1 text-xs text-white/50">
-                    {typeLabel[apt.type] ?? apt.type}
-                  </span>
+                  {!apt.returnedFromTest && (
+                    <span className="ms-auto rounded-full bg-white/8 px-3 py-1 text-xs text-white/50 shrink-0">
+                      {typeLabel[apt.type] ?? apt.type}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
