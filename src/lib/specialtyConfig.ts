@@ -8,7 +8,8 @@ export interface SpecialtyConfig {
   hasHoldForTest: boolean;
   holdOptions: HoldOption[];
   holdSectionTitle?: { ar: string; en: string };
-  secretaryCanManageQueue?: boolean; // Secretary can call next & complete sessions
+  secretaryCanManageQueue?: boolean;
+  hasRecurringPatients?: boolean; // Has long-term treatment patients
 }
 
 export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
@@ -16,6 +17,7 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   // ── Orthopedics ──────────────────────────────────────────────
   orthopedics: {
     hasHoldForTest: true,
+    hasRecurringPatients: true,
     holdSectionTitle: { ar: "إرسال لفحص", en: "Send for Test" },
     holdOptions: [
       { value: "xray", labelAr: "صورة أشعة سينية (X-Ray)", labelEn: "X-Ray" },
@@ -43,6 +45,7 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   // ── Neurology ────────────────────────────────────────────────
   neurology: {
     hasHoldForTest: true,
+    hasRecurringPatients: true,
     holdSectionTitle: { ar: "إرسال لفحص عصبي", en: "Neuro Test" },
     holdOptions: [
       { value: "mri_brain", labelAr: "رنين مغناطيسي دماغ", labelEn: "Brain MRI" },
@@ -56,6 +59,7 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   // ── Ophthalmology ────────────────────────────────────────────
   ophthalmology: {
     hasHoldForTest: true,
+    hasRecurringPatients: true,
     holdSectionTitle: { ar: "إرسال لفحص بصري", en: "Eye Test" },
     holdOptions: [
       { value: "visual_field", labelAr: "فحص المجال البصري", labelEn: "Visual Field Test" },
@@ -69,7 +73,8 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   // ── Dentistry ────────────────────────────────────────────────
   dentistry: {
     hasHoldForTest: true,
-    secretaryCanManageQueue: true, // Dentist usually can't leave patient to use computer
+    secretaryCanManageQueue: true,
+    hasRecurringPatients: true, // Dentist usually can't leave patient to use computer
     holdSectionTitle: { ar: "إرسال لفحص أسنان", en: "Dental Test" },
     holdOptions: [
       { value: "xray_panoramic", labelAr: "أشعة بانورامية للأسنان", labelEn: "Panoramic X-Ray" },
@@ -166,6 +171,7 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   // ── Endocrinology ─────────────────────────────────────────────
   endocrinology: {
     hasHoldForTest: true,
+    hasRecurringPatients: true,
     holdSectionTitle: { ar: "إرسال لتحاليل", en: "Labs / Tests" },
     holdOptions: [
       { value: "hormone_labs", labelAr: "تحاليل هرمونية", labelEn: "Hormone Labs" },
@@ -179,6 +185,7 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   // ── Rheumatology ─────────────────────────────────────────────
   rheumatology: {
     hasHoldForTest: true,
+    hasRecurringPatients: true,
     holdSectionTitle: { ar: "إرسال لفحص", en: "Rheum Test" },
     holdOptions: [
       { value: "xray", labelAr: "أشعة المفاصل", labelEn: "Joint X-Ray" },

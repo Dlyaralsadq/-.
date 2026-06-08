@@ -36,6 +36,7 @@ export async function checkInPatient(appointmentId: string, doctorId: string) {
 
   revalidatePath("/[locale]/secretary", "page");
   revalidatePath("/[locale]/waiting", "page");
+  revalidatePath("/[locale]/doctor", "page");
   return { success: true, queueNumber: nextQueue };
 }
 
@@ -161,12 +162,9 @@ export async function getDoctorForDisplay(doctorId: string) {
 }
 
 export async function getWaitingRoomData(doctorId: string) {
-  const now = new Date();
-  const start = new Date(now); start.setHours(-2, 0, 0, 0);
-  const end = new Date(now); end.setHours(25, 59, 59, 999);
-
+  // No date filter - show all active appointments to avoid timezone issues
   const appointments = await prisma.appointment.findMany({
-    where: { doctorId, date: { gte: start, lte: end }, status: { not: "completed" } },
+    where: { doctorId, status: { not: "completed" } },
     include: { patient: true },
     orderBy: [{ queueNumber: "asc" }, { date: "asc" }],
   });
@@ -236,13 +234,10 @@ export async function getCompletedAppointments(doctorId: string) {
 }
 
 export async function getTodaySyncedQueue(doctorId: string) {
-  // Wide window to handle timezone differences between server/client
-  const now = new Date();
-  const start = new Date(now); start.setHours(-2, 0, 0, 0); // 2 hours before midnight
-  const end = new Date(now); end.setHours(25, 59, 59, 999); // 2 hours after midnight
-
+  // Returns ALL active (non-completed) appointments
+  // Filtering by date happens on the UI side to avoid timezone issues
   return prisma.appointment.findMany({
-    where: { doctorId, date: { gte: start, lte: end }, status: { not: "completed" } },
+    where: { doctorId, status: { not: "completed" } },
     include: { patient: true },
     orderBy: [{ queueNumber: "asc" }, { date: "asc" }],
   });

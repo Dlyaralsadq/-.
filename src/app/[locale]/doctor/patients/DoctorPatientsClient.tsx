@@ -22,8 +22,8 @@ interface Patient {
   isActive: boolean; _count: { appointments: number };
 }
 
-export default function DoctorPatientsClient({ patients, doctorId, locale }: {
-  patients: Patient[]; doctorId: string; locale: string;
+export default function DoctorPatientsClient({ patients, doctorId, locale, showRecurring }: {
+  patients: Patient[]; doctorId: string; locale: string; showRecurring?: boolean;
 }) {
   const t = useTranslations("patients");
   const tc = useTranslations("common");
@@ -204,8 +204,8 @@ export default function DoctorPatientsClient({ patients, doctorId, locale }: {
           <Textarea name="medicalHistory" label={t("medicalHistory")} defaultValue={editPatient?.medicalHistory ?? ""} rows={2} />
           <Textarea name="allergies" label={t("allergies")} defaultValue={editPatient?.allergies ?? ""} rows={2} />
 
-          {/* Recurring patient toggle */}
-          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/6 p-4">
+          {/* Recurring patient toggle - only for relevant specialties */}
+          {showRecurring && <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/6 p-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <div className="relative">
                 <input type="checkbox" name="isRecurring"
@@ -219,7 +219,7 @@ export default function DoctorPatientsClient({ patients, doctorId, locale }: {
                 <p className="text-xs text-white/30">{locale === "ar" ? "مثل تقويم الأسنان أو زراعة الأسنان" : "e.g. Orthodontics, implants"}</p>
               </div>
             </label>
-          </div>
+          </div>}
           <Textarea name="notes" label={locale === "ar" ? "ملاحظات" : "Notes"} defaultValue={(editPatient as any)?.notes ?? ""} rows={2} placeholder={locale === "ar" ? "أي ملاحظات إضافية عن المريض..." : "Any additional notes about the patient..."} />
         </form>
       </Modal>

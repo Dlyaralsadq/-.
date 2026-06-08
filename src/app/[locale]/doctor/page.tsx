@@ -17,9 +17,10 @@ export default async function DoctorPage({ params }: { params: Promise<{ locale:
 
   const queue = await getTodaySyncedQueue(doctor.id);
   const specialtyConfig = getSpecialtyConfig(doctor.specialty.name, (doctor.specialty as any).config);
+  const showRecurring = specialtyConfig.hasRecurringPatients === true;
 
   return (
-    <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor.specialty.name}>
+    <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor.specialty.name} showRecurring={showRecurring}>
       <DoctorClinicClient doctor={doctor} queue={queue as any} locale={locale} specialtyConfig={specialtyConfig} />
     </DashboardLayout>
   );

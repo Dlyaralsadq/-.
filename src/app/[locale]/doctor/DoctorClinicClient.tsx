@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -45,6 +45,12 @@ export default function DoctorClinicClient({ doctor, queue, locale, specialtyCon
   const [saving, setSaving] = useState(false);
   const [holdMenuOpen, setHoldMenuOpen] = useState(false);
   const [holdTargetId, setHoldTargetId] = useState<string | null>(null);
+
+  // Auto-refresh every 5 seconds to pick up secretary actions
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 5000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   const ar = locale === "ar";
 
