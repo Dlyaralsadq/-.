@@ -241,10 +241,20 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
                           </Button>
                         </>
                       )}
-                      <Button variant="ghost" size="sm" className={`h-7 w-7 p-0 ${doc.isActive ? "text-orange-400 hover:bg-orange-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}
-                        onClick={async () => { await toggleDoctorStatus(doc.id, !doc.isActive); router.refresh(); }}>
-                        {doc.isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
-                      </Button>
+                      {doc.isActive ? (
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-orange-400 hover:bg-orange-500/10"
+                          title={ar ? "إيقاف الحساب" : "Suspend account"}
+                          onClick={async () => { await toggleDoctorStatus(doc.id, false); router.refresh(); }}>
+                          <UserX className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-emerald-400 hover:bg-emerald-500/10"
+                          title={ar ? "تأكيد الدفع وإعادة التفعيل" : "Confirm payment & reactivate"}
+                          onClick={async () => { await toggleDoctorStatus(doc.id, true); router.refresh(); }}>
+                          <UserCheck className="h-3.5 w-3.5" />
+                          <span className="text-xs hidden sm:inline">{ar ? "تفعيل" : "Activate"}</span>
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:bg-red-500/10"
                         onClick={() => setDeleteId(doc.id)}>
                         <Trash2 className="h-3.5 w-3.5" />

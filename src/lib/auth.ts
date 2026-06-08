@@ -8,6 +8,7 @@ export interface Session {
   username: string;
   name: string;
   role: string;
+  isActive: boolean;
 }
 
 const SESSION_COOKIE = "clinic_session";
@@ -20,8 +21,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(userId: string, username: string, name: string, role: string): Promise<string> {
-  const sessionData = JSON.stringify({ userId, username, name, role, createdAt: Date.now() });
+export async function createSession(userId: string, username: string, name: string, role: string, isActive: boolean): Promise<string> {
+  const sessionData = JSON.stringify({ userId, username, name, role, isActive, createdAt: Date.now() });
   return Buffer.from(sessionData).toString("base64");
 }
 
@@ -33,7 +34,7 @@ export async function getSession(): Promise<Session | null> {
   try {
     const decoded = Buffer.from(sessionCookie.value, "base64").toString("utf-8");
     const session = JSON.parse(decoded) as Session & { createdAt: number };
-    return { userId: session.userId, username: session.username, name: session.name, role: session.role };
+    return { userId: session.userId, username: session.username, name: session.name, role: session.role, isActive: session.isActive ?? true };
   } catch {
     return null;
   }
@@ -42,6 +43,10 @@ export async function getSession(): Promise<Session | null> {
 export async function requireAuth(locale: string = "ar"): Promise<Session> {
   const session = await getSession();
   if (!session) redirect(`/${locale}/login`);
+  // Doctor/Secretary suspended — allow login but block system access
+  if (!session.isActive && session.role !== "admin") {
+    redirect(`/${locale}/suspended`);
+  }
   return session;
 }
 
@@ -50,12 +55,10 @@ export async function login(username: string, password: string): Promise<{
 }> {
   const user = await prisma.user.findUnique({ where: { username } });
   if (!user) return { success: false, error: "invalid_credentials" };
-  if (!user.isActive) return { success: false, error: "account_inactive" };
-
   const valid = await verifyPassword(password, user.password);
   if (!valid) return { success: false, error: "invalid_credentials" };
 
-  const sessionToken = await createSession(user.id, user.username, user.name, user.role);
+  const sessionToken = await createSession(user.id, user.username, user.name, user.role, user.isActive);
   return { success: true, session: sessionToken, role: user.role };
 }
 
