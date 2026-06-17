@@ -50,6 +50,10 @@ model Doctor {
   workingHoursEnd   String?
   bio               String?
   bioAr             String?
+  logoUrl           String?   // Doctor logo image URL/base64
+  clinicLat         Float?    // Clinic map latitude
+  clinicLng         Float?    // Clinic map longitude
+  clinicAddress     String?   // Clinic full address
   isActive          Boolean   @default(true)
   userId            String?   @unique
   user              User?     @relation(fields: [userId], references: [id])

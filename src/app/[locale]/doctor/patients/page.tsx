@@ -2,7 +2,6 @@ import { requireAuth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getDoctorByUserId, getDoctorPatients } from "@/app/actions/doctorPortal";
-import { getSpecialtyConfig } from "@/lib/specialtyConfig";
 import DoctorPatientsClient from "./DoctorPatientsClient";
 
 export default async function DoctorPatientsPage({
@@ -22,11 +21,10 @@ export default async function DoctorPatientsPage({
   if (!doctor) redirect(`/${locale}/login`);
 
   const patients = await getDoctorPatients(doctor.id, search);
-  const specialtyConfig = getSpecialtyConfig(doctor.specialty.name, (doctor.specialty as any).config);
 
   return (
     <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor?.specialty?.name ?? doctor?.specialty?.nameAr ?? undefined}>
-      <DoctorPatientsClient patients={patients} doctorId={doctor.id} locale={locale} showRecurring={specialtyConfig.hasRecurringPatients === true} />
+      <DoctorPatientsClient patients={patients} doctorId={doctor.id} locale={locale} showRecurring={true} />
     </DashboardLayout>
   );
 }

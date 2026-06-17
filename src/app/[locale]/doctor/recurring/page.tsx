@@ -16,6 +16,10 @@ export default async function RecurringPatientsPage({ params }: { params: Promis
   if (!doctor) redirect(`/${locale}/login`);
 
   const specialtyConfig = getSpecialtyConfig(doctor.specialty.name, (doctor.specialty as any).config);
+  const treatmentTypes = specialtyConfig.recurringTreatmentTypes ?? [
+    { value: "recurring", labelAr: "علاج متكرر", labelEn: "Recurring Treatment" },
+    { value: "followup", labelAr: "متابعة دورية", labelEn: "Periodic Follow-up" },
+  ];
 
   const recurringPatients = await prisma.patient.findMany({
     where: { doctorId: doctor.id, isRecurring: true },
@@ -33,6 +37,7 @@ export default async function RecurringPatientsPage({ params }: { params: Promis
         doctorId={doctor.id}
         locale={locale}
         today={today.toISOString()}
+        treatmentTypes={treatmentTypes}
       />
     </DashboardLayout>
   );

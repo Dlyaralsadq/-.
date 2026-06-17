@@ -9,7 +9,8 @@ export interface SpecialtyConfig {
   holdOptions: HoldOption[];
   holdSectionTitle?: { ar: string; en: string };
   secretaryCanManageQueue?: boolean;
-  hasRecurringPatients?: boolean; // Has long-term treatment patients
+  hasRecurringPatients?: boolean;
+  recurringTreatmentTypes?: { value: string; labelAr: string; labelEn: string }[];
 }
 
 export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
@@ -18,6 +19,13 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   orthopedics: {
     hasHoldForTest: true,
     hasRecurringPatients: true,
+    recurringTreatmentTypes: [
+      { value: "physical_therapy", labelAr: "علاج طبيعي", labelEn: "Physical Therapy" },
+      { value: "fracture_followup", labelAr: "متابعة كسر", labelEn: "Fracture Follow-up" },
+      { value: "joint_injection", labelAr: "حقن مفاصل دورية", labelEn: "Joint Injections" },
+      { value: "post_surgery", labelAr: "متابعة ما بعد عملية", labelEn: "Post-Surgery Follow-up" },
+      { value: "scoliosis", labelAr: "علاج انحراف العمود الفقري", labelEn: "Scoliosis Treatment" },
+    ],
     holdSectionTitle: { ar: "إرسال لفحص", en: "Send for Test" },
     holdOptions: [
       { value: "xray", labelAr: "صورة أشعة سينية (X-Ray)", labelEn: "X-Ray" },
@@ -46,6 +54,12 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   neurology: {
     hasHoldForTest: true,
     hasRecurringPatients: true,
+    recurringTreatmentTypes: [
+      { value: "epilepsy", labelAr: "متابعة الصرع", labelEn: "Epilepsy Management" },
+      { value: "migraine", labelAr: "علاج الشقيقة", labelEn: "Migraine Treatment" },
+      { value: "parkinson", labelAr: "متابعة باركنسون", labelEn: "Parkinson's Follow-up" },
+      { value: "ms", labelAr: "متابعة التصلب المتعدد", labelEn: "MS Follow-up" },
+    ],
     holdSectionTitle: { ar: "إرسال لفحص عصبي", en: "Neuro Test" },
     holdOptions: [
       { value: "mri_brain", labelAr: "رنين مغناطيسي دماغ", labelEn: "Brain MRI" },
@@ -60,6 +74,12 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   ophthalmology: {
     hasHoldForTest: true,
     hasRecurringPatients: true,
+    recurringTreatmentTypes: [
+      { value: "glaucoma", labelAr: "متابعة الجلوكوما", labelEn: "Glaucoma Management" },
+      { value: "retina", labelAr: "متابعة الشبكية", labelEn: "Retina Follow-up" },
+      { value: "contacts", labelAr: "متابعة العدسات اللاصقة", labelEn: "Contact Lens Follow-up" },
+      { value: "children_vision", labelAr: "تصحيح بصر الأطفال", labelEn: "Pediatric Vision Correction" },
+    ],
     holdSectionTitle: { ar: "إرسال لفحص بصري", en: "Eye Test" },
     holdOptions: [
       { value: "visual_field", labelAr: "فحص المجال البصري", labelEn: "Visual Field Test" },
@@ -172,6 +192,12 @@ export const SPECIALTY_CONFIGS: Record<string, SpecialtyConfig> = {
   endocrinology: {
     hasHoldForTest: true,
     hasRecurringPatients: true,
+    recurringTreatmentTypes: [
+      { value: "diabetes", labelAr: "متابعة السكري", labelEn: "Diabetes Management" },
+      { value: "thyroid", labelAr: "متابعة الغدة الدرقية", labelEn: "Thyroid Management" },
+      { value: "obesity", labelAr: "برنامج إدارة الوزن", labelEn: "Weight Management" },
+      { value: "hormones", labelAr: "علاج الهرمونات", labelEn: "Hormone Therapy" },
+    ],
     holdSectionTitle: { ar: "إرسال لتحاليل", en: "Labs / Tests" },
     holdOptions: [
       { value: "hormone_labs", labelAr: "تحاليل هرمونية", labelEn: "Hormone Labs" },

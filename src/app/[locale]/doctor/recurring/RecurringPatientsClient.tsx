@@ -38,8 +38,9 @@ async function updateRecurringPatient(patientId: string, data: {
   return res.ok;
 }
 
-export default function RecurringPatientsClient({ patients, doctorId, locale, today }: {
+export default function RecurringPatientsClient({ patients, doctorId, locale, today, treatmentTypes }: {
   patients: RecurringPatient[]; doctorId: string; locale: string; today: string;
+  treatmentTypes?: { value: string; labelAr: string; labelEn: string }[];
 }) {
   const router = useRouter();
   const ar = locale === "ar";
@@ -58,9 +59,10 @@ export default function RecurringPatientsClient({ patients, doctorId, locale, to
   });
   const other = patients.filter(p => !overdue.includes(p) && !upcoming.includes(p));
 
+  const allTypes = treatmentTypes ?? TREATMENT_TYPES;
   const treatmentLabel = (type: string | null) => {
     if (!type) return "—";
-    const t = TREATMENT_TYPES.find(x => x.value === type);
+    const t = allTypes.find(x => x.value === type);
     return ar ? (t?.labelAr ?? type) : (t?.labelEn ?? type);
   };
 
@@ -161,7 +163,7 @@ export default function RecurringPatientsClient({ patients, doctorId, locale, to
     );
   };
 
-  const treatmentOpts = TREATMENT_TYPES.map(t => ({ value: t.value, label: ar ? t.labelAr : t.labelEn }));
+  const treatmentOpts = (treatmentTypes ?? TREATMENT_TYPES).map(t => ({ value: t.value, label: ar ? t.labelAr : t.labelEn }));
   const weekOpts = [1,2,3,4,5,6,8,10,12].map(w => ({ value: String(w), label: `${w} ${ar ? "أسبوع" : "weeks"}` }));
 
   return (

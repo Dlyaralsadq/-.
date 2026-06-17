@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Stethoscope, ClipboardList, ShieldCheck, Plus, Key, Trash2,
@@ -13,6 +13,9 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { arabicToEnglish } from "@/lib/transliterate";
+import dynamic from "next/dynamic";
+const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), { ssr: false });
 import {
   createDoctorWithAccount, createAccountForDoctor,
   resetDoctorPassword, toggleDoctorStatus, deleteDoctorAndAccount,
@@ -54,6 +57,9 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mapData, setMapData] = useState<{ lat?: number; lng?: number; address?: string }>({});
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState("");
 
@@ -75,6 +81,8 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
       workingDays: fd.get("days") as string || undefined,
       workingHoursStart: fd.get("from") as string || undefined,
       workingHoursEnd: fd.get("to") as string || undefined,
+      ...(logoPreview ? { logoUrl: logoPreview } : {}),
+      ...(mapData.lat ? { clinicLat: mapData.lat, clinicLng: mapData.lng, clinicAddress: mapData.address } : {}),
     }));
     if (ok) { setEditOpen(false); setEditDoctor(null); showToast(ar ? "تم تحديث بيانات الطبيب" : "Doctor updated"); }
   };
@@ -152,7 +160,7 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">{ar ? "إدارة الأطباء والحسابات" : "Manage doctors and accounts"}</p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>
+        <Button onClick={() => { setMapData({}); setLogoPreview(null); setAddOpen(true); }}>
           <Plus className="h-4 w-4" />{ar ? "إضافة طبيب" : "Add Doctor"}
         </Button>
       </div>
@@ -279,7 +287,7 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
                       )}
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-indigo-400 hover:bg-indigo-500/10"
                         title={ar ? "تعديل بيانات الطبيب" : "Edit doctor"}
-                        onClick={() => { setEditDoctor(doc); setEditOpen(true); }}>
+                        onClick={() => { setEditDoctor(doc); setLogoPreview(null); setMapData({ lat: (doc as any).clinicLat, lng: (doc as any).clinicLng, address: (doc as any).clinicAddress }); setEditOpen(true); }}>
                         <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:bg-red-500/10"
@@ -308,8 +316,18 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
               <Stethoscope className="h-3.5 w-3.5" />{ar ? "بيانات الطبيب" : "Doctor Info"}
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <Input name="nameAr" label={ar ? "الاسم بالعربية" : "الاسم بالعربية"} required placeholder="د. محمد الأحمدي" />
-              <Input name="name" label={ar ? "الاسم بالإنجليزية" : "Full Name"} required placeholder="Dr. Mohammed Al-Ahmadi" />
+              <Input name="nameAr" label={ar ? "الاسم بالعربية" : "الاسم بالعربية"} required placeholder="د. محمد الأحمدي"
+                onChange={(e) => {
+                  const engInput = e.currentTarget.form?.querySelector<HTMLInputElement>("[name=\"name\"]");
+                  if (engInput && (!engInput.value || engInput.dataset.autoFilled === "true")) {
+                    engInput.value = arabicToEnglish(e.target.value);
+                    engInput.dataset.autoFilled = "true";
+                  }
+                }}
+              />
+              <Input name="name" label={ar ? "الاسم بالإنجليزية" : "Full Name"} required placeholder="Dr. Mohammed Al-Ahmadi"
+                onChange={(e) => { e.currentTarget.dataset.autoFilled = "false"; }}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select name="specialtyId" label={ar ? "التخصص" : "Specialty"} options={specOpts} placeholder={ar ? "اختر" : "Select"} required />
@@ -326,6 +344,43 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
               <Input name="to" type="time" label={ar ? "إلى" : "To"} defaultValue="16:00" />
             </div>
           </div>
+          {/* Logo upload */}
+          <div className="rounded-xl bg-slate-800/40 border border-[#2a3347] p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{ar ? "شعار الطبيب (اختياري)" : "Doctor Logo (optional)"}</p>
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-600/20 border border-indigo-500/20 text-2xl overflow-hidden">
+                {logoPreview ? <img src={logoPreview} alt="logo" className="h-full w-full object-cover" /> : "🩺"}
+              </div>
+              <div>
+                <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                <button type="button" onClick={() => logoInputRef.current?.click()}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-slate-300 hover:bg-white/10 transition-colors">
+                  {ar ? "رفع صورة الشعار" : "Upload Logo"}
+                </button>
+                {logoPreview && <button type="button" onClick={() => setLogoPreview(null)}
+                  className="mt-1 text-xs text-rose-400 hover:text-rose-300">{ar ? "حذف" : "Remove"}</button>}
+              </div>
+            </div>
+          </div>
+
+          {/* Clinic location */}
+          <div className="rounded-xl bg-slate-800/40 border border-[#2a3347] p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{ar ? "موقع العيادة على الخريطة" : "Clinic Location on Map"}</p>
+            <MapPicker
+              lat={mapData.lat} lng={mapData.lng} address={mapData.address}
+              locale={locale}
+              onChange={(lat, lng, address) => setMapData({ lat, lng, address })}
+            />
+          </div>
+
           <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 p-4 space-y-3">
             <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5" />{ar ? "حساب الدخول" : "Login Account"}
@@ -366,6 +421,39 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
           <div className="grid grid-cols-2 gap-3">
             <Input name="from" type="time" label={ar ? "من" : "From"} defaultValue={editDoctor?.workingHoursStart ?? "08:00"} />
             <Input name="to" type="time" label={ar ? "إلى" : "To"} defaultValue={editDoctor?.workingHoursEnd ?? "16:00"} />
+          </div>
+          {/* Logo in edit */}
+          <div className="rounded-xl bg-slate-800/40 border border-[#2a3347] p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{ar ? "شعار الطبيب" : "Doctor Logo"}</p>
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-600/20 border border-indigo-500/20 overflow-hidden text-2xl">
+                {logoPreview ?? (editDoctor as any)?.logoUrl ? <img src={logoPreview ?? (editDoctor as any)?.logoUrl} alt="logo" className="h-full w-full object-cover" /> : "🩺"}
+              </div>
+              <div>
+                <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+                    reader.readAsDataURL(file);
+                  }} />
+                <button type="button" onClick={() => logoInputRef.current?.click()}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/10 transition-colors">
+                  {ar ? "تغيير الشعار" : "Change Logo"}
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* Map in edit */}
+          <div className="rounded-xl bg-slate-800/40 border border-[#2a3347] p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{ar ? "موقع العيادة" : "Clinic Location"}</p>
+            <MapPicker
+              lat={(editDoctor as any)?.clinicLat ?? mapData.lat}
+              lng={(editDoctor as any)?.clinicLng ?? mapData.lng}
+              address={(editDoctor as any)?.clinicAddress ?? mapData.address}
+              locale={locale}
+              onChange={(lat, lng, address) => setMapData({ lat, lng, address })}
+            />
           </div>
         </form>
       </Modal>

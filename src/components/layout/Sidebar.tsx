@@ -6,9 +6,9 @@ import { LayoutDashboard, Users, Calendar, Stethoscope, ClipboardList, ShieldChe
 import { useTranslations } from "next-intl";
 import { getSpecialtyIcon } from "@/lib/specialtyIcons";
 
-interface SidebarProps { locale: string; isOpen: boolean; onClose: () => void; role?: string; doctorSpecialty?: string; showRecurring?: boolean; }
+interface SidebarProps { locale: string; isOpen: boolean; onClose: () => void; role?: string; doctorSpecialty?: string; recurringCount?: number; }
 
-export default function Sidebar({ locale, isOpen, onClose, role="admin", doctorSpecialty, showRecurring }: SidebarProps) {
+export default function Sidebar({ locale, isOpen, onClose, role="admin", doctorSpecialty, recurringCount }: SidebarProps) {
   const tn = useTranslations("nav");
   const ta = useTranslations("admin");
   const td = useTranslations("doctorPortal");
@@ -24,7 +24,7 @@ export default function Sidebar({ locale, isOpen, onClose, role="admin", doctorS
     { href: `/${locale}/secretary`, icon: ClipboardList, label: ar ? "الاستقبال" : "Reception" },
     { href: `/${locale}/doctor/patients`, icon: Users, label: td("myPatients") },
     { href: `/${locale}/doctor/appointments`, icon: Calendar, label: ar ? "سجل المواعيد" : "Archive" },
-    ...(showRecurring ? [{ href: `/${locale}/doctor/recurring`, icon: Users, label: ar ? "المرضى الدائمون" : "Recurring" }] : []),
+    ...(recurringCount && recurringCount > 0 ? [{ href: `/${locale}/doctor/recurring`, icon: Users, label: ar ? `المرضى الدائمون (${recurringCount})` : `Recurring (${recurringCount})` }] : []),
   ];
   const secretaryNav = [
     { href: `/${locale}/secretary`, icon: ClipboardList, label: ar ? "الاستقبال" : "Reception", exact: true },

@@ -91,6 +91,10 @@ export async function updateDoctorAndAccount(
     workingHoursStart?: string;
     workingHoursEnd?: string;
     isActive?: boolean;
+    logoUrl?: string;
+    clinicLat?: number;
+    clinicLng?: number;
+    clinicAddress?: string;
   }
 ) {
   await prisma.doctor.update({ where: { id: doctorId }, data });

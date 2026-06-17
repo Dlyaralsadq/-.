@@ -24,19 +24,31 @@ export default function Modal({ isOpen, onClose, title, children, size="md", foo
     <div ref={ref} className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={e => e.target===ref.current && onClose()}>
       <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
-      <div className={cn("relative w-full animate-fade-up", sizes[size])}>
-        <div className="rounded-2xl border border-white/8 bg-[#0f1629] shadow-2xl overflow-hidden">
+
+      {/* Modal container — flex column with max height */}
+      <div className={cn("relative w-full animate-fade-up flex flex-col", sizes[size])}
+        style={{ maxHeight: "90vh" }}>
+        <div className="rounded-2xl border border-white/8 bg-[#0f1629] shadow-2xl flex flex-col overflow-hidden"
+          style={{ maxHeight: "90vh" }}>
+
+          {/* Header — fixed */}
           {title && (
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/6">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/6 shrink-0">
               <h2 className="text-sm font-semibold text-white tracking-wide">{title}</h2>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" onClick={onClose}>
                 <X className="h-3.5 w-3.5" />
               </Button>
             </div>
           )}
-          <div className="px-6 py-5">{children}</div>
+
+          {/* Body — scrollable */}
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {children}
+          </div>
+
+          {/* Footer — fixed at bottom */}
           {footer && (
-            <div className="flex items-center justify-end gap-3 border-t border-white/6 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-white/6 px-6 py-4 shrink-0 bg-[#0f1629]">
               {footer}
             </div>
           )}

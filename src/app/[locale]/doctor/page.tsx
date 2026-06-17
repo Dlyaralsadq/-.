@@ -15,12 +15,14 @@ export default async function DoctorPage({ params }: { params: Promise<{ locale:
   const doctor = await getDoctorByUserId(session.userId);
   if (!doctor) redirect(`/${locale}/login`);
 
-  const queue = await getTodaySyncedQueue(doctor.id);
+  const [queue, recurringCount] = await Promise.all([
+    getTodaySyncedQueue(doctor.id),
+    (await import("@/lib/prisma")).prisma.patient.count({ where: { doctorId: doctor.id, isRecurring: true } }),
+  ]);
   const specialtyConfig = getSpecialtyConfig(doctor.specialty.name, (doctor.specialty as any).config);
-  const showRecurring = specialtyConfig.hasRecurringPatients === true;
 
   return (
-    <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor.specialty.name} showRecurring={showRecurring}>
+    <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor.specialty.name} recurringCount={recurringCount}>
       <DoctorClinicClient doctor={doctor} queue={queue as any} locale={locale} specialtyConfig={specialtyConfig} />
     </DashboardLayout>
   );
