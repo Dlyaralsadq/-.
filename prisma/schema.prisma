@@ -2,6 +2,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Supports both SQLite (local dev) and PostgreSQL (production/Vercel)
+// Set DATABASE_PROVIDER=postgresql for production, default is sqlite
 datasource db {
   provider = "sqlite"
 }
@@ -11,9 +13,9 @@ model User {
   username        String   @unique
   password        String
   name            String
-  role            String   @default("admin") // admin | doctor | secretary
+  role            String   @default("admin")
   isActive        Boolean  @default(true)
-  linkedDoctorId  String?  // For secretary: the doctor they work for
+  linkedDoctorId  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   doctor          Doctor?
@@ -26,7 +28,7 @@ model Specialty {
   description   String?
   descriptionAr String?
   isActive      Boolean  @default(true)
-  config        String?  // JSON: specialty-specific workflow config
+  config        String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   doctors       Doctor[]
@@ -50,10 +52,10 @@ model Doctor {
   workingHoursEnd   String?
   bio               String?
   bioAr             String?
-  logoUrl           String?   // Doctor logo image URL/base64
-  clinicLat         Float?    // Clinic map latitude
-  clinicLng         Float?    // Clinic map longitude
-  clinicAddress     String?   // Clinic full address
+  logoUrl           String?
+  clinicLat         Float?
+  clinicLng         Float?
+  clinicAddress     String?
   isActive          Boolean   @default(true)
   userId            String?   @unique
   user              User?     @relation(fields: [userId], references: [id])
@@ -64,35 +66,34 @@ model Doctor {
 }
 
 model Patient {
-  id               String    @id @default(cuid())
-  patientNumber    String    @unique
-  name             String
-  nameAr           String?
-  dateOfBirth      DateTime?
-  gender           String
-  phone            String
-  email            String?
-  address          String?
-  nationalId       String?
-  bloodType        String?
-  insurance        String?
-  medicalHistory   String?
-  allergies        String?
-  emergencyContact String?
-  emergencyPhone   String?
-  doctorId         String?
-  doctor           Doctor?   @relation(fields: [doctorId], references: [id])
-  isActive         Boolean   @default(true)
-  // Recurring treatment tracking (Dentistry, Orthodontics, etc.)
-  isRecurring      Boolean   @default(false)
-  treatmentType    String?   // e.g. "orthodontics", "implant", "whitening"
-  totalSessions    Int?      // planned total sessions
-  sessionsCompleted Int?     @default(0)
-  nextVisitDate    DateTime?
-  recurringWeeks   Int?      // weeks between visits
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  appointments     Appointment[]
+  id                String    @id @default(cuid())
+  patientNumber     String    @unique
+  name              String
+  nameAr            String?
+  dateOfBirth       DateTime?
+  gender            String
+  phone             String
+  email             String?
+  address           String?
+  nationalId        String?
+  bloodType         String?
+  insurance         String?
+  medicalHistory    String?
+  allergies         String?
+  emergencyContact  String?
+  emergencyPhone    String?
+  doctorId          String?
+  doctor            Doctor?   @relation(fields: [doctorId], references: [id])
+  isActive          Boolean   @default(true)
+  isRecurring       Boolean   @default(false)
+  treatmentType     String?
+  totalSessions     Int?
+  sessionsCompleted Int?      @default(0)
+  nextVisitDate     DateTime?
+  recurringWeeks    Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  appointments      Appointment[]
 }
 
 model Appointment {
@@ -106,7 +107,7 @@ model Appointment {
   duration          Int      @default(30)
   type              String   @default("consultation")
   status            String   @default("scheduled")
-  arrivalStatus     String   @default("pending")  // pending | arrived | called | with_doctor | done
+  arrivalStatus     String   @default("pending")
   queueNumber       Int?
   isPaid            Boolean  @default(false)
   reason            String?
