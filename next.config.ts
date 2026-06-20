@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     "*.trycloudflare.com",
     "trycloudflare.com",
   ],
+  // Required for Railway/Docker deployments
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
 };
 
 export default withNextIntl(nextConfig);

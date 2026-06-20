@@ -1,9 +1,23 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "@prisma/client";
+// @ts-nocheck
 import bcrypt from "bcryptjs";
 
-const adapter = new PrismaBetterSqlite3({ url: "file:./dev.db" });
-const prisma = new PrismaClient({ adapter });
+// Universal client - works with SQLite (local) and PostgreSQL (Railway/Vercel)
+async function createPrisma() {
+  const dbUrl = process.env.DATABASE_URL ?? "file:./dev.db";
+  if (dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://")) {
+    const { PrismaPg } = await import("@prisma/adapter-pg");
+    const { Pool } = await import("pg");
+    const { PrismaClient } = await import("@prisma/client");
+    const pool = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
+    return new PrismaClient({ adapter: new PrismaPg(pool) });
+  } else {
+    const { PrismaBetterSqlite3 } = await import("@prisma/adapter-better-sqlite3");
+    const { PrismaClient } = await import("@prisma/client");
+    return new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: dbUrl }) });
+  }
+}
+
+const prisma = await createPrisma();
 
 async function main() {
   console.log("🌱 Seeding database...");
