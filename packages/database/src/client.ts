@@ -1,12 +1,29 @@
 import { PrismaClient } from "@prisma/client";
 import path from "path";
+import fs from "fs";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function defaultDatabaseUrl(): string {
-  return `file:${path.join(__dirname, "..", "prisma", "dev.db")}`;
+  // __dirname is unreliable inside Next.js server bundles.
+  // Try several candidate locations in order.
+  const cwd = process.cwd();
+  const candidates = [
+    path.join(cwd, "../../packages/database/prisma/dev.db"),
+    path.join(cwd, "packages/database/prisma/dev.db"),
+    path.join(__dirname, "../prisma/dev.db"),
+    path.join(__dirname, "../../prisma/dev.db"),
+    path.join(cwd, "dev.db"),
+  ];
+  for (const p of candidates) {
+    try {
+      fs.statSync(p);
+      return `file:${p}`;
+    } catch {}
+  }
+  return `file:${candidates[0]}`;
 }
 
 function createPrismaClient() {
