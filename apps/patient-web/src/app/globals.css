@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #060912;
+  --card: #0f1629;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #f0f4ff;
+  --muted: #8892b0;
+  --accent: #6366f1;
+}
+
+body {
+  background: radial-gradient(circle at top, #1a1f3d 0%, var(--bg) 45%);
+  color: var(--text);
+  font-family: "Cairo", "Inter", sans-serif;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+
+.input {
+  background: #0c1121;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  color: var(--text);
+}
+
+.btn {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}

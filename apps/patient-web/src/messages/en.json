@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "title": "Iraq Doctors Platform",
+    "description": "Find your doctor and book appointments easily"
+  },
+  "hero": {
+    "title": "Find a doctor in Iraq",
+    "subtitle": "Medical specialties, clinic locations, and booking info"
+  },
+  "search": {
+    "specialty": "Specialty",
+    "allSpecialties": "All specialties",
+    "query": "Search by doctor name",
+    "results": "Available doctors",
+    "empty": "No matching results",
+    "bookSoon": "Online booking coming soon"
+  },
+  "doctor": {
+    "fee": "Consultation fee",
+    "address": "Address",
+    "hours": "Working hours",
+    "specialty": "Specialty",
+    "iqd": "IQD",
+    "viewMap": "View on map",
+    "back": "Back to search"
+  },
+  "footer": {
+    "clinicSystem": "Doctor login",
+    "platform": "Iraq Medical Clinics Platform"
+  }
+}

@@ -4,11 +4,11 @@ module.exports = {
       name: "clinicpro",
       script: "node_modules/next/dist/bin/next",
       args: "start",
-      cwd: "/workspace",
+      cwd: "/workspace/apps/clinic-system",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
-        DATABASE_URL: "file:./dev.db",
+        DATABASE_URL: "file:../../packages/database/prisma/dev.db",
       },
       restart_delay: 3000,
       max_restarts: 10,

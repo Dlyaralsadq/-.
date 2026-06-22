@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 
 // Universal client - works with SQLite (local) and PostgreSQL (Railway/Vercel)
 async function createPrisma() {
-  const dbUrl = process.env.DATABASE_URL ?? "file:./dev.db";
+  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
   if (dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://")) {
     const { PrismaPg } = await import("@prisma/adapter-pg");
     const { Pool } = await import("pg");
@@ -17,9 +17,8 @@ async function createPrisma() {
   }
 }
 
-const prisma = await createPrisma();
-
 async function main() {
+  const prisma = await createPrisma();
   console.log("🌱 Seeding database...");
 
   const hashedPassword = await bcrypt.hash("admin123", 12);
@@ -85,7 +84,17 @@ async function main() {
     createdDoctors[doc.name] = d.id;
   }
 
-  console.log("✅ Admin + Doctors + Specialties created");
+  const oneYearFromNow = new Date();
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  for (const doctorId of Object.values(createdDoctors)) {
+    await prisma.doctorSubscription.upsert({
+      where: { doctorId },
+      update: { expiresAt: oneYearFromNow },
+      create: { doctorId, expiresAt: oneYearFromNow },
+    });
+  }
+
+  console.log("✅ Admin + Doctors + Specialties + Subscriptions created");
 
   // Patients (assigned to dr.ahmad)
   const patientsData = [
@@ -133,6 +142,10 @@ async function main() {
   console.log("\n🎉 Database seeded!");
   console.log("   Admin login:  admin / admin123");
   console.log("   Doctor login: dr.ahmad / admin123");
+  await prisma.$disconnect();
 }
 
-main().catch(e => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
