@@ -18,7 +18,7 @@ import type { SpecialtyConfig } from "@/lib/specialtyConfig";
 interface Appointment {
   id: string; appointmentNumber: string; date: Date; type: string;
   status: string; arrivalStatus: string; queueNumber: number | null;
-  reason: string | null; isPaid: boolean;
+  reason: string | null; isPaid: boolean; source?: string;
   patient: { id: string; name: string; nameAr: string | null; phone: string; };
 }
 
@@ -387,7 +387,14 @@ export default function SecretaryClient({ appointments, todayQueue, doctor, pati
                                   </div>
                                 </div>
                               </td>
-                              <td className="font-medium text-slate-300 text-sm tabular-nums">{formatTime(apt.date)}</td>
+                              <td className="font-medium text-slate-300 text-sm tabular-nums">
+                                {formatTime(apt.date)}
+                                {apt.source === "online" && (
+                                  <span className="ms-1.5 inline-flex items-center rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">
+                                    {ar ? "أونلاين" : "Online"}
+                                  </span>
+                                )}
+                              </td>
                               <td className="text-xs text-slate-400">{ar ? tl?.ar : tl?.en}</td>
                               <td>
                                 <span className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium ${cfg.bg} ${cfg.text}`}>

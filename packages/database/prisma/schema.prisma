@@ -117,8 +117,10 @@ model Appointment {
   completedAt       DateTime?
   holdReason        String?
   returnedFromTest  Boolean  @default(false)
-  editedBy          String?  // "secretary" or "doctor" userId
-  editNote          String?  // note about who made the edit
+  editedBy          String?
+  editNote          String?
+  source            String   @default("manual")  // "manual" | "online"
+  patientPhone      String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
