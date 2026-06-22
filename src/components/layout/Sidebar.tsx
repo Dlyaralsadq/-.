@@ -2,7 +2,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Calendar, Stethoscope, ClipboardList, ShieldCheck, ChevronRight, Heart } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, Stethoscope, ClipboardList, ShieldCheck, ChevronRight, Heart, Settings } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { getSpecialtyIcon } from "@/lib/specialtyIcons";
 
@@ -25,6 +25,7 @@ export default function Sidebar({ locale, isOpen, onClose, role="admin", doctorS
     { href: `/${locale}/doctor/patients`, icon: Users, label: td("myPatients") },
     { href: `/${locale}/doctor/appointments`, icon: Calendar, label: ar ? "سجل المواعيد" : "Archive" },
     ...(recurringCount && recurringCount > 0 ? [{ href: `/${locale}/doctor/recurring`, icon: Users, label: ar ? `المرضى الدائمون (${recurringCount})` : `Recurring (${recurringCount})` }] : []),
+    { href: `/${locale}/doctor/settings`, icon: Settings, label: ar ? "الإعدادات" : "Settings" },
   ];
   const secretaryNav = [
     { href: `/${locale}/secretary`, icon: ClipboardList, label: ar ? "الاستقبال" : "Reception", exact: true },

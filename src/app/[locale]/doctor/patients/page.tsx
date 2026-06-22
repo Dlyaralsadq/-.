@@ -24,7 +24,7 @@ export default async function DoctorPatientsPage({
 
   return (
     <DashboardLayout locale={locale} userName={session.name} role="doctor" doctorSpecialty={doctor?.specialty?.name ?? doctor?.specialty?.nameAr ?? undefined}>
-      <DoctorPatientsClient patients={patients} doctorId={doctor.id} locale={locale} showRecurring={true} />
+      <DoctorPatientsClient patients={patients} doctorId={doctor.id} locale={locale} showRecurring={true} doctorSpecialty={doctor.specialty.name} />
     </DashboardLayout>
   );
 }

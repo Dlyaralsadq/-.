@@ -6,13 +6,13 @@ import Link from "next/link";
 import {
   CalendarPlus, CheckCircle2, Clock, User, Stethoscope,
   Phone, Search, DoorOpen, Banknote, MonitorPlay,
-  UserCheck, AlertCircle, CheckCheck, ChevronDown, ChevronRight, FlaskConical, RotateCcw, PlayCircle
+  UserCheck, AlertCircle, CheckCheck, ChevronDown, ChevronRight, FlaskConical, RotateCcw, PlayCircle, Pencil, Trash2
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import { checkInPatient, quickBookAppointment, confirmPatientEntry, markPayment, patientReturnedFromTest, callNextPatient, completeAppointment, callOnHoldPatient } from "@/app/actions/clinic";
+import { checkInPatient, quickBookAppointment, confirmPatientEntry, markPayment, patientReturnedFromTest, callNextPatient, completeAppointment, callOnHoldPatient, secretaryDeleteAppointment, secretaryEditAppointment } from "@/app/actions/clinic";
 import type { SpecialtyConfig } from "@/lib/specialtyConfig";
 
 interface Appointment {
@@ -65,9 +65,9 @@ function formatTime(date: Date): string {
   return new Date(date).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function SecretaryClient({ appointments, todayQueue, doctor, patients, doctorId, locale, specialtyConfig }: {
+export default function SecretaryClient({ appointments, todayQueue, doctor, patients, doctorId, locale, specialtyConfig, secretaryUserId }: {
   appointments: Appointment[]; todayQueue?: Appointment[]; doctor: any; patients: any[];
-  doctorId: string; locale: string; specialtyConfig?: SpecialtyConfig;
+  doctorId: string; locale: string; specialtyConfig?: SpecialtyConfig; secretaryUserId?: string;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -76,6 +76,8 @@ export default function SecretaryClient({ appointments, todayQueue, doctor, pati
   const [search, setSearch] = useState("");
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
   const [paymentConfirmId, setPaymentConfirmId] = useState<string | null>(null);
+  const [editApt, setEditApt] = useState<Appointment | null>(null);
+  const [deleteAptId, setDeleteAptId] = useState<string | null>(null);
 
   const ar = locale === "ar";
 
@@ -483,6 +485,86 @@ export default function SecretaryClient({ appointments, todayQueue, doctor, pati
                   <Banknote className="h-4 w-4" />{ar ? "تأكيد الدفع والوصول" : "Confirm Payment & Arrival"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Appointment Modal */}
+      {editApt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setEditApt(null)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-white/8 bg-[#0f1629] shadow-2xl p-6 animate-fade-up space-y-4">
+            <h3 className="text-sm font-semibold text-white">{ar ? "تعديل الموعد" : "Edit Appointment"}</h3>
+            <p className="text-xs text-amber-400 flex items-center gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {ar ? "سيظهر للطبيب أن السكرتير قام بالتعديل" : "Doctor will be notified this was edited by secretary"}
+            </p>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setLoading(true);
+              const fd = new FormData(e.currentTarget);
+              await secretaryEditAppointment(editApt.id, doctorId, secretaryUserId ?? "", {
+                date: fd.get("date") as string || undefined,
+                time: fd.get("time") as string || undefined,
+                type: fd.get("type") as string || undefined,
+                notes: fd.get("notes") as string || undefined,
+              });
+              setLoading(false);
+              setEditApt(null);
+              router.refresh();
+            }} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "التاريخ" : "Date"}</label>
+                  <input type="date" name="date" defaultValue={new Date(editApt.date).toISOString().split("T")[0]} className="form-input text-sm" dir="ltr" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "الوقت" : "Time"}</label>
+                  <input type="time" name="time" defaultValue={`${new Date(editApt.date).getHours().toString().padStart(2,"0")}:${new Date(editApt.date).getMinutes().toString().padStart(2,"0")}`} className="form-input text-sm" dir="ltr" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="form-label">{ar ? "النوع" : "Type"}</label>
+                <select name="type" defaultValue={editApt.type} className="form-input text-sm">
+                  {typeOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="form-label">{ar ? "ملاحظات" : "Notes"}</label>
+                <textarea name="notes" defaultValue={editApt.reason ?? ""} rows={2} className="form-input text-sm resize-none" dir="auto" />
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setEditApt(null)} className="flex-1 rounded-xl border border-white/8 bg-white/4 py-2 text-sm text-slate-400 hover:bg-white/8 transition-colors">{ar ? "إلغاء" : "Cancel"}</button>
+                <Button type="submit" className="flex-1" loading={loading}>{ar ? "حفظ" : "Save"}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete appointment confirm */}
+      {deleteAptId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setDeleteAptId(null)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-white/8 bg-[#0f1629] shadow-2xl p-6 animate-fade-up text-center space-y-4">
+            <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-rose-500/15 border border-rose-500/25">
+              <Trash2 className="h-7 w-7 text-rose-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">{ar ? "حذف الموعد" : "Delete Appointment"}</h3>
+              <p className="text-sm text-white/40 mt-1">{ar ? "هل أنت متأكد من حذف هذا الموعد؟" : "Are you sure you want to delete this appointment?"}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setDeleteAptId(null)} className="flex-1 rounded-xl border border-white/8 bg-white/4 py-2.5 text-sm text-slate-400 hover:bg-white/8 transition-colors">{ar ? "إلغاء" : "Cancel"}</button>
+              <button onClick={async () => {
+                setLoading(true);
+                await secretaryDeleteAppointment(deleteAptId!, doctorId, secretaryUserId ?? "");
+                setDeleteAptId(null); setLoading(false); router.refresh();
+              }} disabled={loading}
+                className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-500 py-2.5 text-sm text-white font-medium transition-colors disabled:opacity-50">
+                {loading ? "..." : (ar ? "حذف" : "Delete")}
+              </button>
             </div>
           </div>
         </div>

@@ -49,8 +49,12 @@ export default function DoctorAppointmentsClient({ appointments, patients, docto
     if (!dateStr || !timeStr) { setErrors({ date: tc("required") }); setLoading(false); return; }
 
     const result = await createAppointmentForDoctor(doctorId, {
-      patientId: fd.get("patientId") as string,
-      date: new Date(`${dateStr}T${timeStr}:00`).toISOString(),
+patientId: fd.get("patientId") as string,
+      date: (() => {
+        const [y, m, d] = dateStr.split("-").map(Number);
+        const [h, min] = timeStr.split(":").map(Number);
+        return new Date(y, m - 1, d, h, min, 0).toISOString();
+      })(),
       duration: parseInt(fd.get("duration") as string) || 30,
       type: fd.get("type") as string || "consultation",
       status: "scheduled",

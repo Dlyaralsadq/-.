@@ -11,12 +11,13 @@ interface MapPickerProps {
   locale?: string;
 }
 
-export default function MapPicker({ lat, lng, address, onChange, locale = "ar" }: MapPickerProps) {
+export default function MapPicker({ lat, lng, address, onChange, locale = "ar", autoLocate }: MapPickerProps & { autoLocate?: boolean }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [searchQuery, setSearchQuery] = useState(address ?? "");
   const [searching, setSearching] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [currentAddress, setCurrentAddress] = useState(address ?? "");
   const ar = locale === "ar";
 
@@ -89,6 +90,23 @@ export default function MapPicker({ lat, lng, address, onChange, locale = "ar" }
     }
   };
 
+  const handleLocate = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        mapInstance.current?.setView([latitude, longitude], 17);
+        markerRef.current?.setLatLng([latitude, longitude]);
+        const addr = await reverseGeocode(latitude, longitude);
+        onChange(latitude, longitude, addr);
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setSearching(true);
@@ -129,6 +147,11 @@ export default function MapPicker({ lat, lng, address, onChange, locale = "ar" }
           className="flex items-center gap-1.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30 px-4 py-2 text-xs font-medium text-indigo-300 hover:bg-indigo-600/30 transition-colors disabled:opacity-50">
           {searching ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Search className="h-3.5 w-3.5" />}
           {ar ? "بحث" : "Search"}
+        </button>
+        <button type="button" onClick={handleLocate} disabled={locating}
+          className="flex items-center gap-1 rounded-xl bg-emerald-600/20 border border-emerald-500/30 px-3 py-2 text-xs font-medium text-emerald-300 hover:bg-emerald-600/30 transition-colors disabled:opacity-50"
+          title={ar ? "استخدم موقعي الحالي" : "Use my current location"}>
+          {locating ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : "📍"}
         </button>
       </div>
 

@@ -21,6 +21,8 @@ import {
   resetDoctorPassword, toggleDoctorStatus, deleteDoctorAndAccount,
   createSecretaryAccount, updateDoctorAndAccount,
 } from "@/app/actions/admin";
+import { setDoctorSubscription } from "@/app/actions/subscription";
+import { sendMessage } from "@/app/actions/messages";
 
 interface Specialty { id: string; name: string; nameAr: string; }
 interface Doctor {
@@ -42,8 +44,10 @@ const dayOptions = [
   { value: "mon-fri", label_ar: "الاثنين - الجمعة", label_en: "Mon - Fri" },
 ];
 
-export default function AdminDashboardClient({ stats, doctors, specialties, locale }: {
-  stats: Stats; doctors: Doctor[]; specialties: Specialty[]; locale: string;
+export default function AdminDashboardClient({ stats, doctors, specialties, subscriptions, locale }: {
+  stats: Stats; doctors: Doctor[]; specialties: Specialty[];
+  subscriptions: { doctorId: string; expiresAt: Date }[];
+  locale: string;
 }) {
   const router = useRouter();
   const ar = locale === "ar";
@@ -54,6 +58,7 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
   const [accOpen, setAccOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [secOpen, setSecOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(false);
@@ -271,6 +276,11 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
                           </Button>
                         </>
                       )}
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-cyan-400 hover:bg-cyan-500/10"
+                        title={ar ? "تحديد انتهاء الاشتراك" : "Set subscription expiry"}
+                        onClick={() => { setSelected(doc); setSubOpen(true); }}>
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                      </Button>
                       {doc.isActive ? (
                         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-orange-400 hover:bg-orange-500/10"
                           title={ar ? "إيقاف الحساب" : "Suspend account"}
@@ -494,6 +504,43 @@ export default function AdminDashboardClient({ stats, doctors, specialties, loca
           <Input name="name" label={ar ? "الاسم" : "Name"} required placeholder={ar ? "اسم السكرتير" : "Secretary name"} />
           <Input name="username" label={ar ? "اسم المستخدم" : "Username"} required error={errors.username} placeholder="secretary.name" />
           <Input name="password" type="password" label={ar ? "كلمة المرور" : "Password"} required placeholder="••••••••" />
+        </form>
+      </Modal>
+
+      {/* Subscription modal */}
+      <Modal isOpen={subOpen} onClose={() => setSubOpen(false)}
+        title={`${ar ? "تحديد اشتراك" : "Set Subscription"} — ${ar ? selected?.nameAr : selected?.name}`}
+        size="sm"
+        footer={<>
+          <Button variant="secondary" onClick={() => setSubOpen(false)} disabled={loading}>{ar ? "إلغاء" : "Cancel"}</Button>
+          <Button type="submit" form="sub-form" loading={loading}>{ar ? "حفظ" : "Save"}</Button>
+        </>}>
+        <form id="sub-form" onSubmit={async (e) => {
+          e.preventDefault();
+          if (!selected) return;
+          setLoading(true);
+          const fd = new FormData(e.currentTarget);
+          const days = parseInt(fd.get("days") as string);
+          const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+          await setDoctorSubscription(selected.id, expiry);
+          // Send notification to doctor
+          if (selected.user?.id) {
+            await sendMessage("system", selected.user.id,
+              ar ? `تم تحديث اشتراكك في النظام. تاريخ الانتهاء: ${expiry.toLocaleDateString("ar-SA")}`
+                 : `Your subscription has been updated. Expiry: ${expiry.toLocaleDateString("en-US")}`);
+          }
+          setLoading(false);
+          setSubOpen(false);
+          showToast(ar ? "تم تحديث الاشتراك" : "Subscription updated");
+          router.refresh();
+        }} className="space-y-4">
+          <Select name="days" label={ar ? "مدة الاشتراك" : "Subscription Duration"}
+            options={[
+              { value: "30", label: ar ? "شهر (30 يوم)" : "1 Month (30 days)" },
+              { value: "90", label: ar ? "3 أشهر (90 يوم)" : "3 Months" },
+              { value: "180", label: ar ? "6 أشهر (180 يوم)" : "6 Months" },
+              { value: "365", label: ar ? "سنة (365 يوم)" : "1 Year" },
+            ]} defaultValue="30" required />
         </form>
       </Modal>
 

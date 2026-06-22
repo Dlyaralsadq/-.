@@ -22,8 +22,8 @@ interface Patient {
   isActive: boolean; _count: { appointments: number };
 }
 
-export default function DoctorPatientsClient({ patients, doctorId, locale, showRecurring }: {
-  patients: Patient[]; doctorId: string; locale: string; showRecurring?: boolean;
+export default function DoctorPatientsClient({ patients, doctorId, locale, showRecurring, doctorSpecialty }: {
+  patients: Patient[]; doctorId: string; locale: string; showRecurring?: boolean; doctorSpecialty?: string;
 }) {
   const t = useTranslations("patients");
   const tc = useTranslations("common");
@@ -141,7 +141,7 @@ export default function DoctorPatientsClient({ patients, doctorId, locale, showR
                         {p.name[0]}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{p.name}</p>
+                        <p className="font-medium text-white">{p.name}</p>
                         {p.nameAr && <p className="text-xs text-gray-400">{p.nameAr}</p>}
                       </div>
                     </div>

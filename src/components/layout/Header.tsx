@@ -1,14 +1,16 @@
 "use client";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+const MessagingPanel = dynamic(() => import("@/components/ui/MessagingPanel"), { ssr: false });
 import Link from "next/link";
-import { Menu, Globe, LogOut, Bell, ChevronDown, ShieldCheck, Stethoscope, ClipboardList } from "lucide-react";
+import { Menu, Globe, LogOut, ChevronDown, ShieldCheck, Stethoscope, ClipboardList, Bell } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import { cn } from "@/lib/utils";
 
-interface HeaderProps { locale: string; userName?: string; onMenuToggle: () => void; role?: string; }
+interface HeaderProps { locale: string; userName?: string; onMenuToggle: () => void; role?: string; userId?: string; messages?: any[]; unreadCount?: number; doctors?: any[]; adminUserId?: string; }
 
-export default function Header({ locale, userName, onMenuToggle, role="admin" }: HeaderProps) {
+export default function Header({ locale, userName, onMenuToggle, role="admin", userId, messages, unreadCount, doctors, adminUserId }: HeaderProps) {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
   const ar = locale === "ar";
@@ -42,10 +44,17 @@ export default function Header({ locale, userName, onMenuToggle, role="admin" }:
           <span className="hidden sm:inline">{other==="ar" ? "عربي" : "EN"}</span>
         </Link>
 
-        <button className="relative flex h-8 w-8 items-center justify-center rounded-xl text-white/30 hover:text-white/70 hover:bg-white/6 transition-colors">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 end-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500" />
-        </button>
+        {userId ? (
+          <MessagingPanel
+            userId={userId} role={role}
+            messages={messages ?? []} unreadCount={unreadCount ?? 0}
+            locale={locale} doctors={doctors} adminUserId={adminUserId}
+          />
+        ) : (
+          <button className="relative flex h-8 w-8 items-center justify-center rounded-xl text-white/30 hover:text-white/70 hover:bg-white/6 transition-colors">
+            <Bell className="h-4 w-4" />
+          </button>
+        )}
 
         {/* User menu */}
         <div className="relative ms-1">

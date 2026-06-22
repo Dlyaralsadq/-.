@@ -128,7 +128,10 @@ export async function quickBookAppointment(doctorId: string, data: {
   }
 
   const appointmentNumber = generateId("APT");
-  const dateTime = new Date(`${data.date}T${data.time}:00`);
+  // Parse as local time to avoid UTC offset shifting the date
+  const [year, month, day] = data.date.split("-").map(Number);
+  const [hour, minute] = data.time.split(":").map(Number);
+  const dateTime = new Date(year, month - 1, day, hour, minute, 0);
 
   await prisma.appointment.create({
     data: {
@@ -329,5 +332,51 @@ export async function callOnHoldPatient(appointmentId: string, doctorId: string)
   revalidatePath("/[locale]/doctor", "page");
   revalidatePath("/[locale]/secretary", "page");
   revalidatePath("/[locale]/waiting", "page");
+  return { success: true };
+}
+
+// ── Secretary: Delete/Edit appointments with audit ──────────────
+export async function secretaryDeleteAppointment(appointmentId: string, doctorId: string, secretaryId: string) {
+  const apt = await prisma.appointment.findFirst({ where: { id: appointmentId, doctorId } });
+  if (!apt) return { success: false };
+
+  await prisma.appointment.delete({ where: { id: appointmentId } });
+  revalidatePath("/[locale]/secretary", "page");
+  revalidatePath("/[locale]/doctor", "page");
+  return { success: true };
+}
+
+export async function secretaryEditAppointment(
+  appointmentId: string,
+  doctorId: string,
+  secretaryId: string,
+  data: { date?: string; time?: string; type?: string; notes?: string; reason?: string }
+) {
+  const apt = await prisma.appointment.findFirst({ where: { id: appointmentId, doctorId } });
+  if (!apt) return { success: false };
+
+  let newDate = apt.date;
+  if (data.date && data.time) {
+    const [y, m, d] = data.date.split("-").map(Number);
+    const [h, min] = data.time.split(":").map(Number);
+    newDate = new Date(y, m - 1, d, h, min, 0);
+  }
+
+  const secretary = await prisma.user.findUnique({ where: { id: secretaryId }, select: { name: true } });
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      date: newDate,
+      type: data.type ?? apt.type,
+      notes: data.notes ?? apt.notes,
+      reason: data.reason ?? apt.reason,
+      editedBy: secretaryId,
+      editNote: `عُدِّل بواسطة السكرتير: ${secretary?.name ?? "سكرتير"}`,
+    },
+  });
+
+  revalidatePath("/[locale]/secretary", "page");
+  revalidatePath("/[locale]/doctor", "page");
   return { success: true };
 }

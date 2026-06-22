@@ -86,8 +86,12 @@ export default function DoctorClinicClient({ doctor, queue, locale, specialtyCon
         <div className="bg-gradient-to-r from-[#1e1b4b] via-[#1a1f5e] to-[#0f172a] px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600/30 border border-indigo-500/30 text-white text-lg font-black">
-                {doctor.name[0]}
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600/30 border border-indigo-500/30 text-white text-lg font-black overflow-hidden">
+                {doctor.logoUrl ? (
+                  <img src={doctor.logoUrl} alt="logo" className="h-full w-full object-cover" />
+                ) : (
+                  doctor.name[0]
+                )}
               </div>
               <div>
                 <p className="font-bold text-white">{ar ? doctor.nameAr : doctor.name}</p>
