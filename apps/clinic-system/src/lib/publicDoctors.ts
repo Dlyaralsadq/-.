@@ -1,6 +1,6 @@
-import { prisma } from "@iraq-clinic/database";
+import { prisma } from "@/lib/prisma";
 
-export async function getSpecialties() {
+export async function getPublicSpecialties() {
   return prisma.specialty.findMany({
     where: { isActive: true },
     orderBy: { nameAr: "asc" },
@@ -12,16 +12,12 @@ export async function getListedDoctors(filters?: {
   query?: string;
 }) {
   const now = new Date();
-
   const subscriptions = await prisma.doctorSubscription.findMany({
     where: { expiresAt: { gt: now } },
     select: { doctorId: true },
   });
   const subscribedIds = subscriptions.map((s) => s.doctorId);
-
-  if (subscribedIds.length === 0) {
-    return [];
-  }
+  if (subscribedIds.length === 0) return [];
 
   return prisma.doctor.findMany({
     where: {
@@ -38,22 +34,17 @@ export async function getListedDoctors(filters?: {
           }
         : {}),
     },
-    include: {
-      specialty: true,
-      _count: { select: { appointments: true } },
-    },
+    include: { specialty: true },
     orderBy: { nameAr: "asc" },
   });
 }
 
-export async function getDoctorById(id: string) {
+export async function getPublicDoctorById(id: string) {
   const now = new Date();
-  const subscription = await prisma.doctorSubscription.findFirst({
+  const sub = await prisma.doctorSubscription.findFirst({
     where: { doctorId: id, expiresAt: { gt: now } },
   });
-
-  if (!subscription) return null;
-
+  if (!sub) return null;
   return prisma.doctor.findFirst({
     where: { id, isActive: true },
     include: { specialty: true },

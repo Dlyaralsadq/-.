@@ -7,12 +7,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:clinic": "npm run dev -w @iraq-clinic/clinic-system",
-    "dev:patient": "npm run dev -w @iraq-clinic/patient-web",
-    "build:clinic": "npm run build -w @iraq-clinic/clinic-system",
-    "build:patient": "npm run build -w @iraq-clinic/patient-web",
-    "build": "npm run db:generate && npm run build:clinic && npm run build:patient",
-    "lint": "npm run lint -w @iraq-clinic/clinic-system && npm run lint -w @iraq-clinic/patient-web",
+    "dev": "npm run dev -w @iraq-clinic/clinic-system",
+    "build": "npm run db:generate && npm run build -w @iraq-clinic/clinic-system",
+    "start": "npm run start -w @iraq-clinic/clinic-system",
+    "lint": "npm run lint -w @iraq-clinic/clinic-system",
     "db:generate": "npm run db:generate -w @iraq-clinic/database",
     "db:migrate": "npm run db:migrate -w @iraq-clinic/database",
     "db:seed": "npm run db:seed -w @iraq-clinic/database",

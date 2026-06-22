@@ -1,54 +1,59 @@
-# Iraq Clinic Platform — Monorepo
+# Iraq Clinic Platform
 
-منصة عيادات طبية للعراق: نظام إدارة العيادات + تطبيق المريض + لوحة مدير المنصة.
+منصة موحّدة لإدارة العيادات الطبية في العراق — تطبيق واحد يخدم ثلاثة أطراف.
 
-## Structure
+## الهيكل
 
-```text
+```
 apps/
-  clinic-system/     نظام العيادة الكامل (طبيب، سكرتير، مدير المنصة /admin)
-  patient-web/       تطبيق المريض (بحث أطباء + معلومات الحجز)
+  clinic-system/     التطبيق الموحّد (مريض + طبيب + مدير المنصة)
 packages/
-  database/          Prisma + PostgreSQL/SQLite مشترك
-  config/            إعدادات TypeScript مشتركة
+  database/          Prisma + قاعدة بيانات مشتركة (SQLite / PostgreSQL)
+  config/            إعدادات TypeScript
 ```
 
-## Quick start
+## الصفحات الرئيسية
+
+| الرابط | الوظيفة |
+|--------|---------|
+| `/ar` | الصفحة الرئيسية — اختيار طبيب أم مريض |
+| `/ar/patient` | بحث أطباء حسب التخصص + معلومات |
+| `/ar/patient/doctor/:id` | صفحة تفاصيل الطبيب للمريض |
+| `/ar/login` | دخول الطبيب / الموظف |
+| `/ar/doctor` | لوحة الطبيب |
+| `/ar/secretary` | لوحة السكرتير |
+| `/ar/admin` | لوحتك كمدير المنصة |
+
+## Quick Start
 
 ```bash
 npm install
 npm run db:migrate
 npm run db:seed
-npm run dev:clinic    # http://localhost:3000  — نظام العيادة
-npm run dev:patient   # http://localhost:3001  — تطبيق المريض
+npm run dev        # http://localhost:3000
 ```
 
-### Demo logins (clinic-system)
+## بيانات الدخول التجريبية
 
-| Role | Username | Password |
-|------|----------|----------|
-| Platform admin | `admin` | `admin123` |
-| Doctor | `dr.ahmad` | `admin123` |
+| الدور | المستخدم | كلمة المرور |
+|-------|----------|-------------|
+| مدير المنصة | `admin` | `admin123` |
+| طبيب | `dr.ahmad` | `admin123` |
 
-- **Platform admin (لوحتك):** `http://localhost:3000/ar/admin`
-- **Doctor portal:** `http://localhost:3000/ar/doctor`
-- **Patient search:** `http://localhost:3001/ar`
+## Database Commands
+
+```bash
+npm run db:migrate   # تشغيل migrations
+npm run db:seed      # إضافة بيانات تجريبية
+npm run db:studio    # فتح Prisma Studio
+npm run db:reset     # إعادة تعيين قاعدة البيانات
+```
 
 ## Environment
 
-Copy `.env.example` to `.env` at repo root (optional for local SQLite).
+انسخ `.env.example` إلى `.env` ثم اضبط `DATABASE_URL`.
 
-## Database commands
+## Deployment
 
-```bash
-npm run db:generate
-npm run db:migrate
-npm run db:seed
-npm run db:studio
-```
-
-## Deployment notes
-
-- `apps/clinic-system` includes Railway config for the clinic app.
-- Set `DATABASE_URL` to PostgreSQL in production.
-- Set `CLINIC_APP_URL` for patient-web footer link (e.g. `https://clinic.yourdomain.iq`).
+- `apps/clinic-system/railway.json` — نشر على Railway
+- لـ PostgreSQL عيّن `DATABASE_URL=postgresql://...`
