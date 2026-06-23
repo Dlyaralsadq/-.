@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin, Clock, Banknote, Phone, Calendar, ArrowRight, Star } from "lucide-react";
+import { MapPin, Clock, Banknote, Phone, Calendar, ArrowRight, Star, Navigation } from "lucide-react";
 import { getPublicDoctorById } from "@/lib/publicDoctors";
-import { GOVERNORATES, getSpecialtyIcon } from "@/lib/iraq";
+import { getSpecialtyIcon, inferGovFromAddress } from "@/lib/iraq";
 import { prisma } from "@/lib/prisma";
+import DoctorMapWrapper from "./DoctorMapWrapper";
 
 const DAYS: Record<string, { ar: string; en: string }> = {
   "sat-thu": { ar: "السبت — الخميس", en: "Sat – Thu" },
@@ -22,42 +23,36 @@ export default async function PatientDoctorPage({
   const doctor = await getPublicDoctorById(id);
   if (!doctor) notFound();
 
-  // Fetch secretary info
   const secretary = await prisma.user.findFirst({
     where: { linkedDoctorId: doctor.id, role: "secretary", isActive: true },
     select: { name: true },
   });
-
-  const doctorUser = doctor.userId
-    ? await prisma.user.findUnique({
-        where: { id: doctor.userId },
-        select: { name: true },
-      })
-    : null;
-
-  const govLabel = doctor.clinicAddress
-    ? GOVERNORATES.find(
-        (g) => doctor.clinicAddress?.toLowerCase().includes(g.en.toLowerCase()) ||
-               doctor.clinicAddress?.includes(g.ar)
-      )
-    : null;
 
   const hours =
     doctor.workingHoursStart && doctor.workingHoursEnd
       ? `${doctor.workingHoursStart} – ${doctor.workingHoursEnd}`
       : null;
 
-  const mapUrl =
-    doctor.clinicLat && doctor.clinicLng
-      ? `https://www.google.com/maps?q=${doctor.clinicLat},${doctor.clinicLng}`
-      : null;
-
   const icon = getSpecialtyIcon(doctor.specialtyId ?? "");
+
+  // Determine map coordinates
+  const mapLat = doctor.clinicLat;
+  const mapLng = doctor.clinicLng;
+  const hasExactLocation = mapLat !== null && mapLng !== null;
+
+  // Fallback to governorate center
+  const govInfo = inferGovFromAddress(doctor.clinicAddress ?? "");
+  const fallbackLat = govInfo?.lat ?? 33.2;
+  const fallbackLng = govInfo?.lng ?? 44.0;
+
+  const displayLat = mapLat ?? fallbackLat;
+  const displayLng = mapLng ?? fallbackLng;
+  const displayZoom = hasExactLocation ? 16 : 10;
+
+  const googleMapsUrl = `https://www.google.com/maps?q=${displayLat},${displayLng}&z=${displayZoom}`;
 
   return (
     <div className="min-h-screen bg-[#060912]" dir={ar ? "rtl" : "ltr"}>
-
-      {/* ambient */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600/10 blur-[130px] rounded-full" />
       </div>
@@ -69,26 +64,18 @@ export default async function PatientDoctorPage({
           className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition"
         >
           <ArrowRight size={16} className={ar ? "" : "rotate-180"} />
-          {ar ? "العودة للبحث" : "Back to search"}
+          {ar ? "العودة للخريطة" : "Back to map"}
         </Link>
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-700 text-lg">🏥</div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-2xl px-4 py-8 pb-32">
+      <div className="relative z-10 mx-auto max-w-2xl px-4 py-6 pb-36">
 
         {/* Doctor header */}
         <div className="mb-5 flex items-start gap-4">
-          {doctor.logoUrl ? (
-            <img
-              src={doctor.logoUrl}
-              alt=""
-              className="h-20 w-20 rounded-2xl object-cover border border-white/10 shrink-0"
-            />
-          ) : (
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600/80 to-violet-700/80 text-3xl border border-white/5">
-              {icon}
-            </div>
-          )}
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600/80 to-violet-700/80 text-3xl border border-white/5">
+            {icon}
+          </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-black text-white leading-tight">
               {ar ? doctor.nameAr : doctor.name}
@@ -103,12 +90,6 @@ export default async function PatientDoctorPage({
                   {doctor.experienceYears} {ar ? "سنة خبرة" : "yrs exp"}
                 </span>
               )}
-              {govLabel && (
-                <span className="flex items-center gap-1 text-xs text-white/40">
-                  <MapPin size={10} />
-                  {ar ? govLabel.ar : govLabel.en}
-                </span>
-              )}
               <span className="text-[10px] rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-cyan-400">
                 {ar ? "حجز أونلاين" : "Online booking"}
               </span>
@@ -116,23 +97,45 @@ export default async function PatientDoctorPage({
           </div>
         </div>
 
+        {/* ── Map ── */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-white/50">
+              {ar ? "موقع العيادة" : "Clinic location"}
+            </p>
+            {!hasExactLocation && (
+              <p className="text-[10px] text-amber-400/70">
+                {ar ? "موقع تقريبي" : "Approximate location"}
+              </p>
+            )}
+          </div>
+          <DoctorMapWrapper
+            lat={displayLat}
+            lng={displayLng}
+            name={ar ? doctor.nameAr : doctor.name}
+            locale={locale}
+          />
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center justify-center gap-2 w-full rounded-xl border border-white/10 bg-white/4 py-2.5 text-xs font-semibold text-white/70 hover:text-white hover:border-white/20 transition"
+          >
+            <Navigation size={13} />
+            {ar ? "فتح في خرائط Google" : "Open in Google Maps"}
+          </a>
+        </div>
+
         {/* Info cards */}
         <div className="grid gap-3 mb-5">
-
           {doctor.clinicAddress && (
             <div className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/3 px-4 py-4">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-400">
                 <MapPin size={16} />
               </div>
               <div>
-                <p className="text-[11px] text-white/30 mb-0.5">{ar ? "عنوان العيادة" : "Clinic address"}</p>
+                <p className="text-[11px] text-white/30 mb-0.5">{ar ? "العنوان" : "Address"}</p>
                 <p className="text-sm text-white">{doctor.clinicAddress}</p>
-                {mapUrl && (
-                  <a href={mapUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-[11px] text-indigo-400 hover:underline mt-1 inline-block">
-                    {ar ? "عرض على الخريطة ↗" : "View on map ↗"}
-                  </a>
-                )}
               </div>
             </div>
           )}
@@ -160,15 +163,15 @@ export default async function PatientDoctorPage({
                 <Banknote size={16} />
               </div>
               <div>
-                <p className="text-[11px] text-white/30 mb-0.5">{ar ? "سعر الكشفية" : "Consultation fee"}</p>
+                <p className="text-[11px] text-white/30 mb-0.5">{ar ? "سعر الكشفية" : "Fee"}</p>
                 <p className="text-lg font-black text-emerald-400">
-                  {doctor.consultationFee.toLocaleString()} <span className="text-sm font-normal text-emerald-500/70">{ar ? "د.ع" : "IQD"}</span>
+                  {doctor.consultationFee.toLocaleString()}{" "}
+                  <span className="text-sm font-normal text-emerald-500/70">{ar ? "د.ع" : "IQD"}</span>
                 </p>
               </div>
             </div>
           )}
 
-          {/* Secretary contact */}
           {doctor.phone && (
             <div className="flex items-start gap-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-4">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400">
@@ -177,8 +180,8 @@ export default async function PatientDoctorPage({
               <div className="flex-1">
                 <p className="text-[11px] text-cyan-400/70 mb-0.5">
                   {secretary
-                    ? (ar ? `للتواصل مع السكرتير — ${secretary.name}` : `Contact Secretary — ${secretary.name}`)
-                    : (ar ? "للتواصل مع العيادة" : "Contact the clinic")}
+                    ? (ar ? `التواصل مع السكرتير — ${secretary.name}` : `Secretary — ${secretary.name}`)
+                    : (ar ? "هاتف العيادة" : "Clinic phone")}
                 </p>
                 <p className="text-sm font-bold text-white">{doctor.phone}</p>
                 <a
@@ -186,26 +189,24 @@ export default async function PatientDoctorPage({
                   className="mt-2 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-semibold text-white hover:bg-cyan-500 transition"
                 >
                   <Phone size={12} />
-                  {ar ? "اتصال الآن" : "Call now"}
+                  {ar ? "اتصل الآن" : "Call now"}
                 </a>
               </div>
             </div>
           )}
         </div>
 
-        {/* Bio */}
         {(doctor.bio || doctor.bioAr) && (
           <div className="rounded-2xl border border-white/8 bg-white/3 px-4 py-4 mb-5">
-            <p className="text-[11px] text-white/30 mb-2">{ar ? "نبذة عن الطبيب" : "About the doctor"}</p>
+            <p className="text-[11px] text-white/30 mb-2">{ar ? "عن الطبيب" : "About"}</p>
             <p className="text-sm text-white/60 leading-relaxed">
               {ar ? (doctor.bioAr ?? doctor.bio) : (doctor.bio ?? doctor.bioAr)}
             </p>
           </div>
         )}
-
       </div>
 
-      {/* ── sticky booking CTA ── */}
+      {/* Sticky CTA */}
       <div className="fixed bottom-0 inset-x-0 z-20 border-t border-white/8 bg-[#060912]/95 backdrop-blur-md p-4">
         <div className="mx-auto max-w-2xl grid grid-cols-2 gap-3">
           {doctor.phone && (
@@ -226,7 +227,6 @@ export default async function PatientDoctorPage({
           </Link>
         </div>
       </div>
-
     </div>
   );
 }
