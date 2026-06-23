@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Fix native select/option styling across all browsers */
+select {
+  color-scheme: dark;
+}
+select option {
+  background-color: #111827;
+  color: #f0f4ff;
+}
+
 /* Leaflet map overrides */
 .leaflet-container {
   background: #0c1121 !important;
@@ -18,6 +27,19 @@
   color: #f0f4ff !important;
   border-color: rgba(255,255,255,0.1) !important;
 }
+/* District label tooltip */
+.district-tooltip {
+  background: rgba(99,102,241,0.9) !important;
+  border: 1px solid rgba(129,140,248,0.5) !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 2px 12px rgba(99,102,241,0.4) !important;
+}
+.district-tooltip::before { display: none; }
+
 .leaflet-control-attribution {
   background: rgba(6,9,18,0.7) !important;
   color: rgba(255,255,255,0.2) !important;

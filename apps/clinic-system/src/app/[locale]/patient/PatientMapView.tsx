@@ -4,6 +4,14 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Phone, Calendar, X, Navigation, MapPin, Clock, Banknote, Locate } from "lucide-react";
 
+export interface FocusArea {
+  lat: number;
+  lng: number;
+  zoom: number;
+  radiusKm?: number;
+  label?: string;
+}
+
 export interface DoctorPin {
   id: string;
   nameAr: string;
@@ -29,14 +37,17 @@ const IRAQ_ZOOM = 6;
 export default function PatientMapView({
   doctors,
   locale,
+  focusArea,
 }: {
   doctors: DoctorPin[];
   locale: string;
+  focusArea?: FocusArea | null;
 }) {
   const ar = locale === "ar";
   const mapRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<any[]>([]);
+  const areaCircleRef = useRef<any>(null);
   const [selected, setSelected] = useState<DoctorPin | null>(null);
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -86,6 +97,46 @@ export default function PatientMapView({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctors.length]);
+
+  // Fly to focusArea when district/gov selected
+  useEffect(() => {
+    if (!mapRef.current || !focusArea) return;
+    const map = mapRef.current;
+
+    // Remove previous area circle
+    if (areaCircleRef.current) {
+      areaCircleRef.current.remove();
+      areaCircleRef.current = null;
+    }
+
+    map.flyTo([focusArea.lat, focusArea.lng], focusArea.zoom, {
+      animate: true,
+      duration: 1.2,
+    });
+
+    if (focusArea.radiusKm) {
+      import("leaflet").then((L: any) => {
+        const circle = L.circle([focusArea.lat, focusArea.lng], {
+          radius: focusArea.radiusKm! * 1000,
+          color: "#6366f1",
+          weight: 2,
+          opacity: 0.8,
+          fillColor: "#6366f1",
+          fillOpacity: 0.08,
+          dashArray: "6 4",
+        }).addTo(map);
+        if (focusArea.label) {
+          circle.bindTooltip(focusArea.label, {
+            permanent: true,
+            direction: "center",
+            className: "district-tooltip",
+          }).openTooltip();
+        }
+        areaCircleRef.current = circle;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusArea?.lat, focusArea?.lng, focusArea?.zoom]);
 
   function renderMarkers(L: any, map: any) {
     markersRef.current.forEach((m) => m.remove());

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { GOVERNORATES } from "@/lib/iraq";
+import { IRAQ_GOVERNORATES } from "@/lib/iraq";
 
 export async function getPublicSpecialties() {
   return prisma.specialty.findMany({
@@ -11,6 +11,7 @@ export async function getPublicSpecialties() {
 export async function getListedDoctors(filters?: {
   specialtyId?: string;
   governorate?: string;
+  district?: string;
   query?: string;
 }) {
   const now = new Date();
@@ -21,13 +22,15 @@ export async function getListedDoctors(filters?: {
   const subscribedIds = subscriptions.map((s) => s.doctorId);
   if (subscribedIds.length === 0) return [];
 
-  // Build governorate address filter
+  // Build location address filter (district takes priority over governorate)
   let addressFilter: { clinicAddress: { contains: string } } | undefined;
-  if (filters?.governorate) {
-    const gov = GOVERNORATES.find((g) => g.id === filters.governorate);
-    if (gov) {
-      addressFilter = { clinicAddress: { contains: gov.ar } };
-    }
+  if (filters?.district) {
+    const gov = IRAQ_GOVERNORATES.find((g) => g.id === filters.governorate);
+    const d = gov?.districts.find((d) => d.id === filters.district);
+    if (d) addressFilter = { clinicAddress: { contains: d.ar } };
+  } else if (filters?.governorate) {
+    const gov = IRAQ_GOVERNORATES.find((g) => g.id === filters.governorate);
+    if (gov) addressFilter = { clinicAddress: { contains: gov.ar } };
   }
 
   return prisma.doctor.findMany({

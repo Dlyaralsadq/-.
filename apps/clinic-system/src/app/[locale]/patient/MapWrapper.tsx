@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { DoctorPin } from "./PatientMapView";
+import type { DoctorPin, FocusArea } from "./PatientMapView";
 
 const PatientMapView = dynamic(() => import("./PatientMapView"), {
   ssr: false,
@@ -18,9 +18,11 @@ const PatientMapView = dynamic(() => import("./PatientMapView"), {
 export default function MapWrapper({
   doctors,
   locale,
+  focusArea,
 }: {
   doctors: DoctorPin[];
   locale: string;
+  focusArea?: FocusArea | null;
 }) {
-  return <PatientMapView doctors={doctors} locale={locale} />;
+  return <PatientMapView doctors={doctors} locale={locale} focusArea={focusArea} />;
 }

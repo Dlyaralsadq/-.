@@ -1,32 +1,30 @@
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import { getPublicSpecialties, getListedDoctors } from "@/lib/publicDoctors";
-import { IRAQ_GOVERNORATES, getSpecialtyIcon, inferGovFromAddress } from "@/lib/iraq";
+import { IRAQ_GOVERNORATES, getGovernorate, getDistrict, getSpecialtyIcon, inferGovFromAddress } from "@/lib/iraq";
 import MapWrapper from "./MapWrapper";
-import type { DoctorPin } from "./PatientMapView";
+import FilterBar from "./FilterBar";
+import type { DoctorPin, FocusArea } from "./PatientMapView";
 
 export default async function PatientPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ specialty?: string; gov?: string; q?: string }>;
+  searchParams: Promise<{ specialty?: string; gov?: string; district?: string; q?: string }>;
 }) {
   const { locale } = await params;
-  const { specialty, gov, q } = await searchParams;
+  const { specialty, gov, district, q } = await searchParams;
   const ar = locale === "ar";
   const otherLocale = ar ? "en" : "ar";
 
   const [specialties, rawDoctors] = await Promise.all([
     getPublicSpecialties(),
-    getListedDoctors({ specialtyId: specialty, governorate: gov, query: q }),
+    getListedDoctors({ specialtyId: specialty, governorate: gov, district, query: q }),
   ]);
 
-  // Build doctor pins — infer location from address if lat/lng missing
+  // Build doctor pins
   const doctors: DoctorPin[] = rawDoctors.map((doc) => {
-    const gov = inferGovFromAddress(doc.clinicAddress ?? "");
-    const fallbackLat = gov?.lat ?? 33.2;
-    const fallbackLng = gov?.lng ?? 44.0;
+    const govInfo = inferGovFromAddress(doc.clinicAddress ?? "");
     return {
       id: doc.id,
       nameAr: doc.nameAr,
@@ -36,8 +34,8 @@ export default async function PatientPage({
       specialtyEn: doc.specialty.name,
       lat: doc.clinicLat ?? null,
       lng: doc.clinicLng ?? null,
-      govLat: fallbackLat,
-      govLng: fallbackLng,
+      govLat: govInfo?.lat ?? 33.2,
+      govLng: govInfo?.lng ?? 44.0,
       clinicAddress: doc.clinicAddress,
       phone: doc.phone,
       consultationFee: doc.consultationFee,
@@ -47,11 +45,28 @@ export default async function PatientPage({
     };
   });
 
+  // Compute focusArea: district > governorate > Iraq center
+  let focusArea: FocusArea | null = null;
+  if (district && gov) {
+    const d = getDistrict(gov, district);
+    if (d) {
+      focusArea = {
+        lat: d.lat, lng: d.lng,
+        zoom: 12,
+        radiusKm: d.radiusKm,
+        label: ar ? d.ar : d.en,
+      };
+    }
+  } else if (gov) {
+    const g = getGovernorate(gov);
+    if (g) {
+      focusArea = { lat: g.lat, lng: g.lng, zoom: 10, radiusKm: 40, label: ar ? g.ar : g.en };
+    }
+  }
+
   return (
-    <div
-      className="flex flex-col h-screen bg-[#060912] overflow-hidden"
-      dir={ar ? "rtl" : "ltr"}
-    >
+    <div className="flex flex-col h-screen bg-[#060912] overflow-hidden" dir={ar ? "rtl" : "ltr"}>
+
       {/* ── Top nav ── */}
       <nav className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[#060912]/90 backdrop-blur-md z-10">
         <div className="flex items-center gap-2">
@@ -61,79 +76,27 @@ export default async function PatientPage({
           <span className="font-black text-white text-base">ClinicPro</span>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/${otherLocale}/patient`}
-            className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/40 hover:text-white/70 transition"
-          >
+          <Link href={`/${otherLocale}/patient`}
+            className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/40 hover:text-white/70 transition">
             {ar ? "EN" : "AR"}
           </Link>
-          <Link
-            href={`/${locale}/login`}
-            className="text-xs px-2.5 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition"
-          >
+          <Link href={`/${locale}/login`}
+            className="text-xs px-2.5 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition">
             {ar ? "دخول الأطباء" : "Doctor login"}
           </Link>
         </div>
       </nav>
 
-      {/* ── Filters ── */}
-      <form
-        method="GET"
-        className="shrink-0 flex items-center gap-2 px-3 py-2.5 bg-[#060912]/80 border-b border-white/5 backdrop-blur-md z-10 overflow-x-auto"
-      >
-        {/* Specialty */}
-        <div className="relative shrink-0">
-          <select
-            name="specialty"
-            defaultValue={specialty ?? ""}
-            className="h-9 appearance-none rounded-xl border border-white/10 bg-white/5 ps-3 pe-7 text-xs text-white focus:outline-none focus:border-indigo-500/50 max-w-[160px]"
-          >
-            <option value="">{ar ? "كل التخصصات" : "All specialties"}</option>
-            {specialties.map((s) => (
-              <option key={s.id} value={s.id}>
-                {getSpecialtyIcon(s.id)} {ar ? s.nameAr : s.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-white/30" />
-        </div>
+      {/* ── Cascading filter bar (client component) ── */}
+      <FilterBar
+        specialties={specialties}
+        locale={locale}
+        initial={{ specialty: specialty ?? "", gov: gov ?? "", district: district ?? "", q: q ?? "" }}
+      />
 
-        {/* Governorate */}
-        <div className="relative shrink-0">
-          <select
-            name="gov"
-            defaultValue={gov ?? ""}
-            className="h-9 appearance-none rounded-xl border border-white/10 bg-white/5 ps-3 pe-7 text-xs text-white focus:outline-none focus:border-indigo-500/50 max-w-[140px]"
-          >
-            <option value="">{ar ? "كل المحافظات" : "All governorates"}</option>
-            {IRAQ_GOVERNORATES.map((g) => (
-              <option key={g.id} value={g.id}>
-                {ar ? g.ar : g.en}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-white/30" />
-        </div>
-
-        {/* Search */}
-        <input
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder={ar ? "اسم الطبيب..." : "Doctor name..."}
-          className="h-9 flex-1 min-w-[100px] rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
-        />
-
-        <button
-          type="submit"
-          className="shrink-0 h-9 px-4 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-500 transition"
-        >
-          {ar ? "بحث" : "Search"}
-        </button>
-      </form>
-
-      {/* ── Map — fills remaining height ── */}
+      {/* ── Map ── */}
       <div className="flex-1 relative min-h-0">
-        <MapWrapper doctors={doctors} locale={locale} />
+        <MapWrapper doctors={doctors} locale={locale} focusArea={focusArea} />
       </div>
     </div>
   );
