@@ -8,23 +8,19 @@ export async function getPublicSpecialties() {
   });
 }
 
+/**
+ * Returns ALL active doctors for the patient map.
+ * Subscription is only required for clinic management access, not for map visibility.
+ */
 export async function getListedDoctors(filters?: {
   specialtyId?: string;
   governorate?: string;
   district?: string;
   query?: string;
 }) {
-  const now = new Date();
-  const subscriptions = await prisma.doctorSubscription.findMany({
-    where: { expiresAt: { gt: now } },
-    select: { doctorId: true },
-  });
-  const subscribedIds = subscriptions.map((s) => s.doctorId);
-  if (subscribedIds.length === 0) return [];
-
-  // Build location address filter (district takes priority over governorate)
+  // Build location filter
   let addressFilter: { clinicAddress: { contains: string } } | undefined;
-  if (filters?.district) {
+  if (filters?.district && filters?.governorate) {
     const gov = IRAQ_GOVERNORATES.find((g) => g.id === filters.governorate);
     const d = gov?.districts.find((d) => d.id === filters.district);
     if (d) addressFilter = { clinicAddress: { contains: d.ar } };
@@ -36,7 +32,6 @@ export async function getListedDoctors(filters?: {
   return prisma.doctor.findMany({
     where: {
       isActive: true,
-      id: { in: subscribedIds },
       ...(filters?.specialtyId ? { specialtyId: filters.specialtyId } : {}),
       ...(addressFilter ?? {}),
       ...(filters?.query
@@ -55,13 +50,19 @@ export async function getListedDoctors(filters?: {
 }
 
 export async function getPublicDoctorById(id: string) {
-  const now = new Date();
-  const sub = await prisma.doctorSubscription.findFirst({
-    where: { doctorId: id, expiresAt: { gt: now } },
-  });
-  if (!sub) return null;
   return prisma.doctor.findFirst({
     where: { id, isActive: true },
     include: { specialty: true },
   });
+}
+
+/**
+ * Checks whether a doctor has an active paid subscription.
+ * Used to gate clinic management features.
+ */
+export async function hasActiveSubscription(doctorId: string): Promise<boolean> {
+  const sub = await prisma.doctorSubscription.findFirst({
+    where: { doctorId, expiresAt: { gt: new Date() } },
+  });
+  return !!sub;
 }

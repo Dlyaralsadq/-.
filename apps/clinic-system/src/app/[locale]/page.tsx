@@ -60,7 +60,7 @@ export default async function LocaleRootPage({
 
         {/* Choice cards */}
         <p className="text-center text-white/50 text-sm mb-6">
-          {ar ? "كيف تريد الدخول؟" : "How would you like to continue?"}
+          {ar ? "اختر كيف تريد الدخول" : "How would you like to continue?"}
         </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -110,6 +110,17 @@ export default async function LocaleRootPage({
             </span>
           </Link>
         </div>
+
+        {/* Register link */}
+        <p className="text-center text-xs text-white/30 mt-2 mb-6">
+          {ar ? "طبيب جديد؟ " : "New doctor? "}
+          <Link
+            href={`/${locale}/register`}
+            className="text-indigo-400 hover:underline font-semibold"
+          >
+            {ar ? "سجّل حسابك مجاناً ←" : "→ Create your free account"}
+          </Link>
+        </p>
 
         {/* Language switcher */}
         <div className="mt-8 flex justify-center gap-3">

@@ -5,6 +5,7 @@ import { getDoctorByUserId } from "@/app/actions/doctorPortal";
 import { getTodaySyncedQueue } from "@/app/actions/clinic";
 import { getMessagesForUser, getUnreadCount, getAdminUserId } from "@/app/actions/messages";
 import { getSpecialtyConfig } from "@/lib/specialtyConfig";
+import { hasActiveSubscription } from "@/lib/publicDoctors";
 import DoctorClinicClient from "./DoctorClinicClient";
 
 export default async function DoctorPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -15,6 +16,11 @@ export default async function DoctorPage({ params }: { params: Promise<{ locale:
 
   const doctor = await getDoctorByUserId(session.userId);
   if (!doctor) redirect(`/${locale}/login`);
+
+  // Gate full clinic management behind active subscription.
+  // Doctor settings (profile/location) are always accessible.
+  const subscribed = await hasActiveSubscription(doctor.id);
+  if (!subscribed) redirect(`/${locale}/subscribe`);
 
   const [queue, recurringCount, messages, unreadCount, adminUserId] = await Promise.all([
     getTodaySyncedQueue(doctor.id),
