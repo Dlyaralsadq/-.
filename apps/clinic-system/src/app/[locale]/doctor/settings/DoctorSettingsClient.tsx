@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   User, Phone, Stethoscope, Clock, Banknote, MapPin,
-  Camera, Check, Loader2, AlertCircle, ChevronDown
+  Camera, Check, Loader2, AlertCircle, ChevronDown, UserPlus, Trash2
 } from "lucide-react";
 import { arabicToEnglish } from "@/lib/transliterate";
+import { createSecretaryForDoctor, getSecretariesForDoctorPortal } from "@/app/actions/doctorPortal";
 
 const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), { ssr: false });
 
@@ -45,10 +46,14 @@ export default function DoctorSettingsClient({
   doctor,
   specialties,
   locale,
+  isSubscribed = false,
+  secretaries: initialSecretaries = [],
 }: {
   doctor: Doctor;
   specialties: Specialty[];
   locale: string;
+  isSubscribed?: boolean;
+  secretaries?: Array<{ id: string; username: string; name: string; isActive: boolean }>;
 }) {
   const ar = locale === "ar";
   const router = useRouter();
@@ -78,6 +83,14 @@ export default function DoctorSettingsClient({
     address: doctor.clinicAddress ?? "",
   });
   const [showMap, setShowMap] = useState(false);
+  // Secretary management
+  const [secretaries, setSecretaries] = useState(initialSecretaries);
+  const [secName, setSecName] = useState("");
+  const [secUsername, setSecUsername] = useState("");
+  const [secPassword, setSecPassword] = useState("");
+  const [secLoading, setSecLoading] = useState(false);
+  const [secError, setSecError] = useState("");
+  const [secSuccess, setSecSuccess] = useState(false);
 
   function handleNameAr(v: string) {
     setNameAr(v);
@@ -96,39 +109,47 @@ export default function DoctorSettingsClient({
   async function handleSave() {
     setSaving(true);
     setError("");
-
-    const res = await fetch("/api/doctor/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const payload: Record<string, unknown> = {
         doctorId: doctor.id,
-        name,
-        nameAr,
-        bio: bio || null,
-        bioAr: bioAr || null,
         specialtyId,
-        phone: phone || null,
-        email: email || null,
-        licenseNumber: license || null,
-        experienceYears: exp ? parseInt(exp) : null,
-        consultationFee: fee ? parseFloat(fee) : null,
-        workingDays: days || null,
-        workingHoursStart: from || null,
-        workingHoursEnd: to || null,
-        clinicAddress: mapData.address || null,
-        clinicLat: mapData.lat,
-        clinicLng: mapData.lng,
-        logoUrl: logo || null,
-      }),
-    });
+      };
+      if (name)    payload.name = name;
+      if (nameAr)  payload.nameAr = nameAr;
+      payload.bio  = bio  || null;
+      payload.bioAr= bioAr|| null;
+      payload.phone= phone|| null;
+      payload.email= email|| null;
+      payload.licenseNumber = license || null;
+      payload.experienceYears   = exp  ? parseInt(exp)    : null;
+      payload.consultationFee   = fee  ? parseFloat(fee)  : null;
+      payload.workingDays       = days || null;
+      payload.workingHoursStart = from || null;
+      payload.workingHoursEnd   = to   || null;
+      payload.clinicAddress     = mapData.address || null;
+      payload.clinicLat         = mapData.lat  ?? null;
+      payload.clinicLng         = mapData.lng  ?? null;
+      if (logo) payload.logoUrl = logo;
 
-    setSaving(false);
-    if (res.ok) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-      router.refresh();
-    } else {
-      setError(ar ? "حدث خطأ أثناء الحفظ" : "An error occurred while saving");
+      const res = await fetch("/api/doctor/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+        router.refresh();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? (ar ? "حدث خطأ أثناء الحفظ" : "An error occurred while saving"));
+      }
+    } catch (e) {
+      setError(ar ? "تعذّر الاتصال بالخادم" : "Could not reach the server");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -336,6 +357,78 @@ export default function DoctorSettingsClient({
           />
         )}
       </section>
+
+      {/* ── Secretary management (subscribed only) ── */}
+      {isSubscribed && (
+        <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+            <UserPlus size={15} className="text-indigo-400" />
+            {ar ? "إدارة السكرتير" : "Secretary Management"}
+          </h2>
+
+          {/* Existing secretaries */}
+          {secretaries.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-white/40">{ar ? "السكرتيرون الحاليون:" : "Current secretaries:"}</p>
+              {secretaries.map((s) => (
+                <div key={s.id} className="flex items-center justify-between rounded-xl border border-white/8 bg-white/3 px-3 py-2">
+                  <div>
+                    <p className="text-xs font-semibold text-white">{s.name}</p>
+                    <p className="text-[10px] text-white/40 font-mono">@{s.username}</p>
+                  </div>
+                  <span className={`text-[10px] ${s.isActive ? "text-emerald-400" : "text-red-400"}`}>
+                    {s.isActive ? (ar ? "نشط" : "Active") : (ar ? "معطل" : "Disabled")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add secretary form */}
+          <div className="space-y-3 border-t border-white/8 pt-4">
+            <p className="text-xs text-white/40">{ar ? "إضافة سكرتير جديد:" : "Add new secretary:"}</p>
+            {secError && <p className="text-xs text-rose-400">{secError}</p>}
+            {secSuccess && <p className="text-xs text-emerald-400">{ar ? "تم إضافة السكرتير بنجاح ✓" : "Secretary added successfully ✓"}</p>}
+            <div className="grid grid-cols-1 gap-2.5">
+              <input value={secName} onChange={(e) => setSecName(e.target.value)}
+                placeholder={ar ? "الاسم الكامل" : "Full name"}
+                className={inputCls} />
+              <input value={secUsername} onChange={(e) => setSecUsername(e.target.value)}
+                placeholder={ar ? "اسم المستخدم" : "Username"} dir="ltr"
+                className={inputCls} />
+              <input value={secPassword} onChange={(e) => setSecPassword(e.target.value)}
+                type="password" placeholder={ar ? "كلمة المرور" : "Password"}
+                className={inputCls} />
+            </div>
+            <button type="button" disabled={secLoading}
+              onClick={async () => {
+                if (!secName || !secUsername || !secPassword) {
+                  setSecError(ar ? "جميع الحقول مطلوبة" : "All fields required");
+                  return;
+                }
+                setSecLoading(true); setSecError("");
+                const r = await createSecretaryForDoctor(doctor.id, { name: secName, username: secUsername, password: secPassword });
+                setSecLoading(false);
+                if (r.success) {
+                  setSecSuccess(true);
+                  setSecName(""); setSecUsername(""); setSecPassword("");
+                  const updated = await getSecretariesForDoctorPortal(doctor.id);
+                  setSecretaries(updated);
+                  setTimeout(() => setSecSuccess(false), 3000);
+                } else {
+                  setSecError(r.error === "username_taken" ? (ar ? "اسم المستخدم محجوز" : "Username already taken") : (ar ? "حدث خطأ" : "Error"));
+                }
+              }}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600/20 border border-indigo-500/30 px-4 py-2.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/25 transition disabled:opacity-50"
+            >
+              {secLoading
+                ? <><Loader2 size={13} className="animate-spin" />{ar ? "جاري الإضافة..." : "Adding..."}</>
+                : <><UserPlus size={13} />{ar ? "إضافة سكرتير" : "Add secretary"}</>
+              }
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ── Save button ── */}
       <button

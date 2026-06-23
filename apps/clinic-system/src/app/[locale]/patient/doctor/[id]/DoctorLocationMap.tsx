@@ -18,6 +18,7 @@ export default function DoctorLocationMap({
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    if ((containerRef.current as any)._leaflet_id) return;
 
     (async () => {
       const L = await import("leaflet");

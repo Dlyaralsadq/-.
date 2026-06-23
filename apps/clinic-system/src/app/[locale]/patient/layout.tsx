@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PWAInstaller from "./PWAInstaller";
 
 export async function generateMetadata({
   params,
@@ -33,11 +34,7 @@ export default function PatientLayout({
     <>
       <link rel="manifest" href="/manifest.json" />
       <meta name="theme-color" content="#060912" />
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`,
-        }}
-      />
+      <PWAInstaller />
       {children}
     </>
   );

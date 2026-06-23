@@ -497,12 +497,12 @@ export default function SecretaryClient({ appointments, todayQueue, doctor, pati
         </div>
       )}
 
-      {/* Edit Appointment Modal */}
+      {/* Edit Appointment + Patient Modal */}
       {editApt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setEditApt(null)} />
-          <div className="relative w-full max-w-sm rounded-2xl border border-white/8 bg-[#0f1629] shadow-2xl p-6 animate-fade-up space-y-4">
-            <h3 className="text-sm font-semibold text-white">{ar ? "تعديل الموعد" : "Edit Appointment"}</h3>
+          <div className="relative w-full max-w-md rounded-2xl border border-white/8 bg-[#0f1629] shadow-2xl p-6 animate-fade-up space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-sm font-semibold text-white">{ar ? "تعديل الموعد وبيانات المريض" : "Edit Appointment & Patient Info"}</h3>
             <p className="text-xs text-amber-400 flex items-center gap-1.5">
               <AlertCircle className="h-3.5 w-3.5" />
               {ar ? "سيظهر للطبيب أن السكرتير قام بالتعديل" : "Doctor will be notified this was edited by secretary"}
@@ -511,16 +511,32 @@ export default function SecretaryClient({ appointments, todayQueue, doctor, pati
               e.preventDefault();
               setLoading(true);
               const fd = new FormData(e.currentTarget);
+              // Update appointment
               await secretaryEditAppointment(editApt.id, doctorId, secretaryUserId ?? "", {
                 date: fd.get("date") as string || undefined,
                 time: fd.get("time") as string || undefined,
                 type: fd.get("type") as string || undefined,
                 notes: fd.get("notes") as string || undefined,
               });
+              // Update patient info via API
+              const patientId = editApt.patient.id;
+              const phone = fd.get("patPhone") as string;
+              const dob   = fd.get("patDob") as string;
+              const gender= fd.get("patGender") as string;
+              const blood = fd.get("patBlood") as string;
+              if (patientId) {
+                await fetch("/api/patients/update", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ patientId, doctorId, phone: phone||undefined, dateOfBirth: dob||undefined, gender: gender||undefined, bloodType: blood||undefined }),
+                });
+              }
               setLoading(false);
               setEditApt(null);
               router.refresh();
             }} className="space-y-3">
+              {/* Appointment fields */}
+              <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">{ar ? "تفاصيل الموعد" : "Appointment"}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="form-label">{ar ? "التاريخ" : "Date"}</label>
@@ -531,17 +547,47 @@ export default function SecretaryClient({ appointments, todayQueue, doctor, pati
                   <input type="time" name="time" defaultValue={`${new Date(editApt.date).getHours().toString().padStart(2,"0")}:${new Date(editApt.date).getMinutes().toString().padStart(2,"0")}`} className="form-input text-sm" dir="ltr" />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="form-label">{ar ? "النوع" : "Type"}</label>
-                <select name="type" defaultValue={editApt.type} className="form-input text-sm">
-                  {typeOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "النوع" : "Type"}</label>
+                  <select name="type" defaultValue={editApt.type} className="form-input text-sm">
+                    {typeOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "ملاحظات" : "Notes"}</label>
+                  <textarea name="notes" defaultValue={editApt.reason ?? ""} rows={1} className="form-input text-sm resize-none" dir="auto" />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="form-label">{ar ? "ملاحظات" : "Notes"}</label>
-                <textarea name="notes" defaultValue={editApt.reason ?? ""} rows={2} className="form-input text-sm resize-none" dir="auto" />
+              {/* Patient fields */}
+              <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wider border-t border-white/8 pt-3">{ar ? "بيانات المريض" : "Patient Info"}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "الهاتف" : "Phone"}</label>
+                  <input type="tel" name="patPhone" defaultValue={editApt.patient.phone} className="form-input text-sm" dir="ltr" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "تاريخ الميلاد" : "Date of birth"}</label>
+                  <input type="date" name="patDob" className="form-input text-sm [color-scheme:dark]" dir="ltr" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "الجنس" : "Gender"}</label>
+                  <select name="patGender" className="form-input text-sm">
+                    <option value="">{ar ? "—" : "—"}</option>
+                    <option value="male">{ar ? "ذكر" : "Male"}</option>
+                    <option value="female">{ar ? "أنثى" : "Female"}</option>
+                    <option value="unknown">{ar ? "غير محدد" : "Unknown"}</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="form-label">{ar ? "فصيلة الدم" : "Blood type"}</label>
+                  <select name="patBlood" className="form-input text-sm">
+                    <option value="">{ar ? "—" : "—"}</option>
+                    {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-1">
                 <button type="button" onClick={() => setEditApt(null)} className="flex-1 rounded-xl border border-white/8 bg-white/4 py-2 text-sm text-slate-400 hover:bg-white/8 transition-colors">{ar ? "إلغاء" : "Cancel"}</button>
                 <Button type="submit" className="flex-1" loading={loading}>{ar ? "حفظ" : "Save"}</Button>
               </div>

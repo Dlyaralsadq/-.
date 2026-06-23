@@ -3,6 +3,38 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { generateId } from "@/lib/utils";
+import { hashPassword } from "@/lib/auth";
+
+export async function createSecretaryForDoctor(
+  doctorId: string,
+  data: { name: string; username: string; password: string }
+): Promise<{ success: boolean; error?: string }> {
+  const existing = await prisma.user.findUnique({ where: { username: data.username } });
+  if (existing) return { success: false, error: "username_taken" };
+
+  const hashed = await hashPassword(data.password);
+  await prisma.user.create({
+    data: {
+      username: data.username,
+      password: hashed,
+      name: data.name,
+      role: "secretary",
+      linkedDoctorId: doctorId,
+      isActive: true,
+    },
+  });
+
+  revalidatePath("/[locale]/doctor/settings", "page");
+  return { success: true };
+}
+
+export async function getSecretariesForDoctorPortal(doctorId: string) {
+  return prisma.user.findMany({
+    where: { linkedDoctorId: doctorId, role: "secretary" },
+    select: { id: true, username: true, name: true, isActive: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
 
 export async function getDoctorByUserId(userId: string) {
   return prisma.doctor.findUnique({

@@ -191,3 +191,53 @@ export async function getSecretariesForDoctor(doctorId: string) {
     select: { id: true, username: true, name: true, isActive: true, createdAt: true },
   });
 }
+
+export async function activateDoctorSubscription(doctorId: string, months: number) {
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setMonth(expiresAt.getMonth() + months);
+
+  await prisma.doctorSubscription.upsert({
+    where: { doctorId },
+    update: { expiresAt, notified: false },
+    create: { doctorId, expiresAt, notified: false },
+  });
+
+  // Also make sure doctor is active
+  await prisma.doctor.update({ where: { id: doctorId }, data: { isActive: true } });
+  const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
+  if (doctor?.userId) {
+    await prisma.user.update({ where: { id: doctor.userId }, data: { isActive: true } });
+  }
+
+  revalidatePath("/[locale]/admin", "layout");
+  return { success: true };
+}
+
+export async function getDoctorFullDetails(doctorId: string) {
+  const now = new Date();
+  const [doctor, subscription, secretaries, appointmentsCount] = await Promise.all([
+    prisma.doctor.findUnique({
+      where: { id: doctorId },
+      include: {
+        specialty: true,
+        user: { select: { id: true, username: true, isActive: true, createdAt: true } },
+        _count: { select: { appointments: true, patients: true } },
+      },
+    }),
+    prisma.doctorSubscription.findFirst({ where: { doctorId } }),
+    prisma.user.findMany({
+      where: { linkedDoctorId: doctorId, role: "secretary" },
+      select: { id: true, username: true, name: true, isActive: true },
+    }),
+    prisma.appointment.count({ where: { doctorId } }),
+  ]);
+
+  return {
+    doctor,
+    subscription,
+    isSubscribed: subscription ? subscription.expiresAt > now : false,
+    secretaries,
+    totalAppointments: appointmentsCount,
+  };
+}

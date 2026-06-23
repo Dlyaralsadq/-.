@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { getDoctorByUserId } from "@/app/actions/doctorPortal";
+import { getDoctorByUserId, getSecretariesForDoctorPortal } from "@/app/actions/doctorPortal";
 import { getMessagesForUser, getUnreadCount, getAdminUserId } from "@/app/actions/messages";
 import { hasActiveSubscription } from "@/lib/publicDoctors";
 import { prisma } from "@/lib/prisma";
@@ -21,11 +21,12 @@ export default async function DoctorSettingsPage({
 
   const subscribed = await hasActiveSubscription(doctor.id);
 
-  const [specialties, messages, unreadCount, adminUserId] = await Promise.all([
+  const [specialties, messages, unreadCount, adminUserId, secretaries] = await Promise.all([
     prisma.specialty.findMany({ where: { isActive: true }, orderBy: { nameAr: "asc" } }),
     subscribed ? getMessagesForUser(session.userId) : Promise.resolve([]),
     subscribed ? getUnreadCount(session.userId) : Promise.resolve(0),
     subscribed ? getAdminUserId() : Promise.resolve(null),
+    getSecretariesForDoctorPortal(doctor.id),
   ]);
 
   return (
@@ -52,6 +53,8 @@ export default async function DoctorSettingsPage({
         doctor={doctor as any}
         specialties={specialties}
         locale={locale}
+        isSubscribed={subscribed}
+        secretaries={secretaries}
       />
     </DashboardLayout>
   );

@@ -55,6 +55,7 @@ export default function PatientMapView({
   // Build map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    if ((containerRef.current as any)._leaflet_id) return;
 
     let L: any;
     let map: any;

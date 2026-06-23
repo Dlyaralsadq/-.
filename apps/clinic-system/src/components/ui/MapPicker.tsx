@@ -21,13 +21,14 @@ export default function MapPicker({ lat, lng, address, onChange, locale = "ar", 
   const [currentAddress, setCurrentAddress] = useState(address ?? "");
   const ar = locale === "ar";
 
-  const defaultLat = lat ?? 24.7136;
-  const defaultLng = lng ?? 46.6753; // Riyadh default
+  const defaultLat = lat ?? 33.3152; // Baghdad default
+  const defaultLng = lng ?? 44.3661;
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
+    // Prevent double-initialization (React StrictMode / hot reload)
+    if ((mapRef.current as any)._leaflet_id) return;
 
-    // Dynamically import Leaflet to avoid SSR issues
     import("leaflet").then(L => {
       // Fix default marker icons
       delete (L.Icon.Default.prototype as any)._getIconUrl;

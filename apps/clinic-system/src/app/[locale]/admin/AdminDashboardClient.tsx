@@ -20,6 +20,7 @@ import {
   createDoctorWithAccount, createAccountForDoctor,
   resetDoctorPassword, toggleDoctorStatus, deleteDoctorAndAccount,
   createSecretaryAccount, updateDoctorAndAccount,
+  activateDoctorSubscription, getDoctorFullDetails,
 } from "@/app/actions/admin";
 import { setDoctorSubscription } from "@/app/actions/subscription";
 import { sendMessage } from "@/app/actions/messages";
@@ -67,8 +68,32 @@ export default function AdminDashboardClient({ stats, doctors, specialties, subs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState("");
+  // Doctor detail panel
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailData, setDetailData] = useState<Awaited<ReturnType<typeof getDoctorFullDetails>> | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [activateMonths, setActivateMonths] = useState("12");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3500); };
+
+  const now = new Date();
+  const subMap = new Map(subscriptions.map(s => [s.doctorId, s.expiresAt]));
+  const isSubscribed = (doctorId: string) => {
+    const exp = subMap.get(doctorId);
+    return exp ? new Date(exp) > now : false;
+  };
+  const subExpiry = (doctorId: string) => {
+    const exp = subMap.get(doctorId);
+    return exp ? new Date(exp) : null;
+  };
+
+  const openDetail = async (doc: Doctor) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    const data = await getDoctorFullDetails(doc.id);
+    setDetailData(data);
+    setDetailLoading(false);
+  };
 
   const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -202,6 +227,7 @@ export default function AdminDashboardClient({ stats, doctors, specialties, subs
                 <th>{ar ? "التخصص" : "Specialty"}</th>
                 <th>{ar ? "الهاتف" : "Phone"}</th>
                 <th>{ar ? "المواعيد/المرضى" : "Appts/Patients"}</th>
+                <th>{ar ? "الاشتراك" : "Subscription"}</th>
                 <th>{ar ? "حساب النظام" : "Account"}</th>
                 <th>{ar ? "الحالة" : "Status"}</th>
                 <th className="text-center">{ar ? "إجراءات" : "Actions"}</th>
@@ -213,15 +239,19 @@ export default function AdminDashboardClient({ stats, doctors, specialties, subs
               ) : doctors.map(doc => (
                 <tr key={doc.id}>
                   <td>
-                    <div className="flex items-center gap-3">
+                    <button
+                      className="flex items-center gap-3 hover:opacity-80 transition text-start"
+                      onClick={() => openDetail(doc)}
+                      title={ar ? "عرض تفاصيل الطبيب" : "View doctor details"}
+                    >
                       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600/20 border border-indigo-500/20 text-indigo-300 font-bold text-sm">
                         {doc.name[0]}
                       </div>
                       <div>
-                        <p className="font-medium text-white text-sm">{ar ? doc.nameAr : doc.name}</p>
+                        <p className="font-medium text-indigo-300 hover:text-indigo-200 text-sm underline-offset-2 hover:underline">{ar ? doc.nameAr : doc.name}</p>
                         <p className="text-xs text-slate-600">{ar ? doc.name : doc.nameAr}</p>
                       </div>
-                    </div>
+                    </button>
                   </td>
                   <td>
                     <span className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-xs text-indigo-300">
@@ -233,6 +263,25 @@ export default function AdminDashboardClient({ stats, doctors, specialties, subs
                     <span className="font-semibold text-white">{doc._count.appointments}</span>
                     <span className="text-slate-600 mx-1">/</span>
                     <span>{doc._count.patients}</span>
+                  </td>
+                  <td>
+                    {isSubscribed(doc.id) ? (
+                      <div>
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-xs font-semibold text-emerald-400">
+                          <CheckCircle className="h-3 w-3" />{ar ? "مشترك" : "Active"}
+                        </span>
+                        {subExpiry(doc.id) && (
+                          <p className="text-[10px] text-slate-600 mt-0.5">
+                            {ar ? "ينتهي " : "Exp: "}
+                            {new Date(subExpiry(doc.id)!).toLocaleDateString("en-GB")}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-xs text-amber-400">
+                        <AlertCircle className="h-3 w-3" />{ar ? "غير مشترك" : "Not subscribed"}
+                      </span>
+                    )}
                   </td>
                   <td>
                     {doc.user ? (
@@ -549,6 +598,143 @@ export default function AdminDashboardClient({ stats, doctors, specialties, subs
         loading={loading}
         title={ar ? "حذف الطبيب وحسابه" : "Delete Doctor & Account"}
         message={ar ? "سيُحذف الطبيب وحساب دخوله نهائياً." : "Doctor and their account will be permanently deleted."} />
+
+      {/* Doctor Detail Panel */}
+      <Modal isOpen={detailOpen} onClose={() => { setDetailOpen(false); setDetailData(null); }}
+        title={ar ? "تفاصيل الطبيب" : "Doctor Details"} size="lg">
+        {detailLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500/30 border-t-indigo-500" />
+          </div>
+        ) : detailData?.doctor ? (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-600/20 border border-indigo-500/20 text-2xl font-bold text-indigo-300">
+                {detailData.doctor.name[0]}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white">{ar ? detailData.doctor.nameAr : detailData.doctor.name}</h3>
+                <p className="text-sm text-indigo-400">{ar ? detailData.doctor.specialty.nameAr : detailData.doctor.specialty.name}</p>
+                {detailData.doctor.user && (
+                  <p className="text-xs text-slate-500 mt-0.5">@{detailData.doctor.user.username}</p>
+                )}
+              </div>
+              {/* Subscription badge */}
+              {detailData.isSubscribed ? (
+                <span className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-emerald-500/15 border border-emerald-500/25 px-3 py-1.5 text-xs font-bold text-emerald-400">
+                  <CheckCircle className="h-3.5 w-3.5" />{ar ? "مشترك" : "Subscribed"}
+                </span>
+              ) : (
+                <span className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-400">
+                  <AlertCircle className="h-3.5 w-3.5" />{ar ? "غير مشترك" : "Not subscribed"}
+                </span>
+              )}
+            </div>
+
+            {/* Info grid */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {[
+                { label: ar ? "الهاتف" : "Phone",      value: detailData.doctor.phone },
+                { label: ar ? "الإيميل" : "Email",      value: detailData.doctor.email },
+                { label: ar ? "الترخيص" : "License",    value: detailData.doctor.licenseNumber },
+                { label: ar ? "الخبرة" : "Experience",  value: detailData.doctor.experienceYears ? `${detailData.doctor.experienceYears} ${ar ? "سنة" : "yrs"}` : null },
+                { label: ar ? "الكشفية" : "Fee",        value: detailData.doctor.consultationFee ? `${detailData.doctor.consultationFee.toLocaleString()} ${ar ? "د.ع" : "IQD"}` : null },
+                { label: ar ? "المواعيد" : "Appointments", value: String(detailData.totalAppointments) },
+                { label: ar ? "المرضى" : "Patients",   value: String(detailData.doctor._count.patients) },
+                { label: ar ? "العنوان" : "Address",    value: detailData.doctor.clinicAddress },
+              ].filter(i => i.value).map((item) => (
+                <div key={item.label} className="rounded-xl border border-white/8 bg-white/3 px-3 py-2">
+                  <p className="text-[10px] text-slate-500">{item.label}</p>
+                  <p className="text-white text-xs mt-0.5">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Subscription */}
+            <div className="rounded-2xl border border-white/8 bg-white/3 p-4 space-y-3">
+              <p className="text-xs font-semibold text-white">{ar ? "الاشتراك" : "Subscription"}</p>
+              {detailData.subscription && (
+                <p className="text-xs text-slate-400">
+                  {ar ? "ينتهي: " : "Expires: "}
+                  {new Date(detailData.subscription.expiresAt).toLocaleDateString(ar ? "ar-IQ" : "en-GB")}
+                  {detailData.isSubscribed ? (
+                    <span className="ms-2 text-emerald-400">✓ {ar ? "نشط" : "Active"}</span>
+                  ) : (
+                    <span className="ms-2 text-red-400">✗ {ar ? "منتهي" : "Expired"}</span>
+                  )}
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <select value={activateMonths} onChange={e => setActivateMonths(e.target.value)}
+                  className="rounded-xl border border-white/10 bg-[#0c1121] px-3 py-2 text-xs text-white focus:outline-none">
+                  {[["1", ar?"شهر":"1 Month"],["3","3 "+( ar?"أشهر":"Months")],["6","6 "+(ar?"أشهر":"Months")],["12", ar?"سنة":"1 Year"]].map(([v,l])=>(
+                    <option key={v} value={v}>{l}</option>
+                  ))}
+                </select>
+                <Button size="sm" onClick={async () => {
+                  if (!detailData.doctor) return;
+                  setLoading(true);
+                  await activateDoctorSubscription(detailData.doctor.id, parseInt(activateMonths));
+                  const refreshed = await getDoctorFullDetails(detailData.doctor.id);
+                  setDetailData(refreshed);
+                  setLoading(false);
+                  showToast(ar ? "تم تفعيل الاشتراك" : "Subscription activated");
+                  router.refresh();
+                }} loading={loading} className="gap-1.5 text-xs bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/15">
+                  <CheckCircle className="h-3.5 w-3.5" />{ar ? "تفعيل الاشتراك" : "Activate"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Secretaries */}
+            {detailData.secretaries.length > 0 && (
+              <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
+                <p className="text-xs font-semibold text-white mb-2">{ar ? "السكرتيرون" : "Secretaries"}</p>
+                <div className="space-y-1">
+                  {detailData.secretaries.map(s => (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg bg-white/3 px-3 py-2 text-xs">
+                      <span className="text-white">{s.name}</span>
+                      <span className={`font-mono ${s.isActive ? "text-emerald-400" : "text-red-400"}`}>@{s.username}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bio */}
+            {(detailData.doctor.bioAr || detailData.doctor.bio) && (
+              <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
+                <p className="text-xs font-semibold text-white mb-1.5">{ar ? "السيرة الذاتية" : "Bio"}</p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {ar ? (detailData.doctor.bioAr ?? detailData.doctor.bio) : (detailData.doctor.bio ?? detailData.doctor.bioAr)}
+                </p>
+              </div>
+            )}
+
+            {/* Send message */}
+            {detailData.doctor.user && (
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 space-y-2">
+                <p className="text-xs font-semibold text-cyan-300">{ar ? "إرسال رسالة للطبيب" : "Send message to doctor"}</p>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const fd = new FormData(e.currentTarget);
+                  const msg = fd.get("msg") as string;
+                  if (!msg.trim()) return;
+                  await sendMessage("system", detailData.doctor!.user!.id, msg);
+                  (e.target as HTMLFormElement).reset();
+                  showToast(ar ? "تم إرسال الرسالة" : "Message sent");
+                }} className="flex gap-2">
+                  <input name="msg" required
+                    placeholder={ar ? "اكتب رسالتك..." : "Write your message..."}
+                    className="flex-1 rounded-xl border border-white/10 bg-[#0c1121] px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none" />
+                  <Button type="submit" size="sm" className="shrink-0 text-xs">{ar ? "إرسال" : "Send"}</Button>
+                </form>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }
