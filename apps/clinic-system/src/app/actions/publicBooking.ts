@@ -24,18 +24,11 @@ export async function createOnlineBooking(data: {
   locale: string;
 }): Promise<{ success: boolean; error?: string; appointmentNumber?: string }> {
 
-  // 1. Verify doctor exists and is active with valid subscription
-  const now = new Date();
-  const sub = await prisma.doctorSubscription.findFirst({
-    where: { doctorId: data.doctorId, expiresAt: { gt: now } },
-  });
+  // 1. Verify doctor exists and is active
   const doctor = await prisma.doctor.findFirst({
     where: { id: data.doctorId, isActive: true },
   });
-
-  if (!sub || !doctor) {
-    return { success: false, error: "doctor_unavailable" };
-  }
+  if (!doctor) return { success: false, error: "doctor_unavailable" };
 
   // 2. Parse requested date+time
   const [year, month, day] = data.date.split("-").map(Number);

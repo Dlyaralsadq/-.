@@ -4,19 +4,43 @@ import { getSession } from "@/lib/auth";
 
 export async function PATCH(request: NextRequest) {
   const session = await getSession();
-  if (!session || session.role !== "doctor") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.role !== "doctor") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const { doctorId, logoUrl, logoBackground, logoBgOnDoctor, logoBgOnSecretary, logoBgOnWaiting } = await request.json();
+  const body = await request.json();
+  const { doctorId, ...updateData } = body;
+
+  if (!doctorId) {
+    return NextResponse.json({ error: "Missing doctorId" }, { status: 400 });
+  }
+
+  // Ensure doctor belongs to this user
+  const doctor = await prisma.doctor.findFirst({
+    where: { id: doctorId, userId: session.userId },
+  });
+  if (!doctor) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Whitelist allowed fields
+  const allowed: Record<string, unknown> = {};
+  const fields = [
+    "name", "nameAr", "bio", "bioAr",
+    "specialtyId", "phone", "email",
+    "licenseNumber", "qualification", "qualificationAr",
+    "experienceYears", "consultationFee",
+    "workingDays", "workingHoursStart", "workingHoursEnd",
+    "clinicAddress", "clinicLat", "clinicLng",
+    "logoUrl",
+  ];
+  for (const f of fields) {
+    if (updateData[f] !== undefined) allowed[f] = updateData[f];
+  }
 
   await prisma.doctor.update({
     where: { id: doctorId },
-    data: {
-      ...(logoUrl !== undefined ? { logoUrl } : {}),
-      ...(logoBackground !== undefined ? { logoBackground } : {}),
-      ...(logoBgOnDoctor !== undefined ? { logoBgOnDoctor } : {}),
-      ...(logoBgOnSecretary !== undefined ? { logoBgOnSecretary } : {}),
-      ...(logoBgOnWaiting !== undefined ? { logoBgOnWaiting } : {}),
-    },
+    data: allowed,
   });
 
   return NextResponse.json({ success: true });

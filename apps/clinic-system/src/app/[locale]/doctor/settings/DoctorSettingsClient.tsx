@@ -2,154 +2,355 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Image, Monitor, ClipboardList, Stethoscope, Check } from "lucide-react";
-import Button from "@/components/ui/Button";
+import dynamic from "next/dynamic";
+import {
+  User, Phone, Stethoscope, Clock, Banknote, MapPin,
+  Camera, Check, Loader2, AlertCircle, ChevronDown
+} from "lucide-react";
+import { arabicToEnglish } from "@/lib/transliterate";
 
-interface DoctorSettingsClientProps {
-  doctor: {
-    id: string; name: string; nameAr: string; logoUrl?: string | null;
-    logoBackground?: boolean; logoBgOnDoctor?: boolean;
-    logoBgOnSecretary?: boolean; logoBgOnWaiting?: boolean;
-  };
+const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), { ssr: false });
+
+interface Specialty { id: string; name: string; nameAr: string; }
+interface Doctor {
+  id: string;
+  name: string;
+  nameAr: string;
+  bio: string | null;
+  bioAr: string | null;
+  specialtyId: string;
+  phone: string | null;
+  email: string | null;
+  licenseNumber: string | null;
+  experienceYears: number | null;
+  consultationFee: number | null;
+  workingDays: string | null;
+  workingHoursStart: string | null;
+  workingHoursEnd: string | null;
+  clinicAddress: string | null;
+  clinicLat: number | null;
+  clinicLng: number | null;
+  logoUrl: string | null;
+  specialty: Specialty;
+}
+
+const WORKING_DAYS = [
+  { value: "sat-thu", ar: "السبت — الخميس", en: "Sat – Thu" },
+  { value: "sun-thu", ar: "الأحد — الخميس", en: "Sun – Thu" },
+  { value: "sat-wed", ar: "السبت — الأربعاء", en: "Sat – Wed" },
+  { value: "mon-fri", ar: "الاثنين — الجمعة", en: "Mon – Fri" },
+];
+
+export default function DoctorSettingsClient({
+  doctor,
+  specialties,
+  locale,
+}: {
+  doctor: Doctor;
+  specialties: Specialty[];
   locale: string;
-}
-
-async function updateDoctorSettings(doctorId: string, data: Record<string, unknown>) {
-  const res = await fetch("/api/doctor/settings", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ doctorId, ...data }),
-  });
-  return res.ok;
-}
-
-export default function DoctorSettingsClient({ doctor, locale }: DoctorSettingsClientProps) {
-  const router = useRouter();
+}) {
   const ar = locale === "ar";
+  const router = useRouter();
   const logoRef = useRef<HTMLInputElement>(null);
 
-  const [logo, setLogo] = useState<string | null>(doctor.logoUrl ?? null);
-  const [bgEnabled, setBgEnabled] = useState(doctor.logoBackground ?? false);
-  const [onDoctor, setOnDoctor] = useState(doctor.logoBgOnDoctor ?? true);
-  const [onSecretary, setOnSecretary] = useState(doctor.logoBgOnSecretary ?? false);
-  const [onWaiting, setOnWaiting] = useState(doctor.logoBgOnWaiting ?? false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [nameAr, setNameAr] = useState(doctor.nameAr);
+  const [name, setName] = useState(doctor.name);
+  const [bioAr, setBioAr] = useState(doctor.bioAr ?? "");
+  const [bio, setBio] = useState(doctor.bio ?? "");
+  const [specialtyId, setSpecialtyId] = useState(doctor.specialtyId);
+  const [phone, setPhone] = useState(doctor.phone ?? "");
+  const [email, setEmail] = useState(doctor.email ?? "");
+  const [license, setLicense] = useState(doctor.licenseNumber ?? "");
+  const [exp, setExp] = useState(String(doctor.experienceYears ?? ""));
+  const [fee, setFee] = useState(String(doctor.consultationFee ?? ""));
+  const [days, setDays] = useState(doctor.workingDays ?? "");
+  const [from, setFrom] = useState(doctor.workingHoursStart ?? "");
+  const [to, setTo] = useState(doctor.workingHoursEnd ?? "");
+  const [logo, setLogo] = useState(doctor.logoUrl ?? "");
+  const [mapData, setMapData] = useState({
+    lat: doctor.clinicLat ?? null as number | null,
+    lng: doctor.clinicLng ?? null as number | null,
+    address: doctor.clinicAddress ?? "",
+  });
+  const [showMap, setShowMap] = useState(false);
+
+  function handleNameAr(v: string) {
+    setNameAr(v);
+    const eng = arabicToEnglish(v);
+    if (eng) setName(eng);
+  }
+
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => setLogo(ev.target?.result as string);
     reader.readAsDataURL(file);
-  };
+  }
 
-  const handleSave = async () => {
+  async function handleSave() {
     setSaving(true);
-    await updateDoctorSettings(doctor.id, {
-      logoUrl: logo,
-      logoBackground: bgEnabled,
-      logoBgOnDoctor: onDoctor,
-      logoBgOnSecretary: onSecretary,
-      logoBgOnWaiting: onWaiting,
+    setError("");
+
+    const res = await fetch("/api/doctor/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        doctorId: doctor.id,
+        name,
+        nameAr,
+        bio: bio || null,
+        bioAr: bioAr || null,
+        specialtyId,
+        phone: phone || null,
+        email: email || null,
+        licenseNumber: license || null,
+        experienceYears: exp ? parseInt(exp) : null,
+        consultationFee: fee ? parseFloat(fee) : null,
+        workingDays: days || null,
+        workingHoursStart: from || null,
+        workingHoursEnd: to || null,
+        clinicAddress: mapData.address || null,
+        clinicLat: mapData.lat,
+        clinicLng: mapData.lng,
+        logoUrl: logo || null,
+      }),
     });
+
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-    router.refresh();
-  };
+    if (res.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      router.refresh();
+    } else {
+      setError(ar ? "حدث خطأ أثناء الحفظ" : "An error occurred while saving");
+    }
+  }
+
+  const inputCls = "w-full rounded-xl border border-white/10 bg-[#0c1121] px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50";
+  const labelCls = "block text-xs text-white/40 mb-1.5";
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-xl">
+    <div className="max-w-2xl space-y-6 pb-10">
       <div>
-        <h1 className="text-xl font-bold text-white">{ar ? "إعدادات الطبيب" : "Doctor Settings"}</h1>
-        <p className="text-sm text-white/30 mt-1">{ar ? "تخصيص الشعار والمظهر" : "Customize your logo and appearance"}</p>
+        <h1 className="text-xl font-bold text-white">
+          {ar ? "إعدادات الملف الشخصي" : "Profile Settings"}
+        </h1>
+        <p className="text-sm text-white/30 mt-1">
+          {ar ? "بياناتك تظهر للمرضى على الخريطة" : "Your info is visible to patients on the map"}
+        </p>
       </div>
 
-      {/* Logo section */}
-      <div className="card-premium p-5 space-y-4">
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+          <AlertCircle size={15} />
+          {error}
+        </div>
+      )}
+
+      {/* ── Logo ── */}
+      <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
         <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-          <Camera className="h-4 w-4 text-indigo-400" />
-          {ar ? "شعار العيادة" : "Clinic Logo"}
+          <Camera size={15} className="text-indigo-400" />
+          {ar ? "الصورة / شعار العيادة" : "Photo / Clinic Logo"}
         </h2>
         <div className="flex items-center gap-5">
-          <div className="relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-indigo-600/15 border border-indigo-500/20 overflow-hidden text-3xl">
-              {logo ? <img src={logo} alt="logo" className="h-full w-full object-cover" /> : "🩺"}
-            </div>
-            <button onClick={() => logoRef.current?.click()}
-              className="absolute -bottom-1 -end-1 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 border-2 border-[#0f1629] text-white hover:bg-indigo-500 transition-colors">
-              <Camera className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-indigo-600/15 border border-indigo-500/20 overflow-hidden text-3xl cursor-pointer"
+            onClick={() => logoRef.current?.click()}>
+            {logo
+              ? <img src={logo} alt="logo" className="h-full w-full object-cover" />
+              : "🩺"}
           </div>
-          <div className="space-y-2">
-            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
-            <button onClick={() => logoRef.current?.click()}
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 hover:bg-white/10 transition-colors">
-              <Camera className="h-4 w-4" />
-              {ar ? "تغيير الشعار" : "Change Logo"}
+          <div>
+            <button type="button" onClick={() => logoRef.current?.click()}
+              className="flex items-center gap-2 rounded-xl bg-white/8 border border-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/12 transition">
+              <Camera size={13} />
+              {ar ? "رفع صورة" : "Upload photo"}
             </button>
             {logo && (
-              <button onClick={() => setLogo(null)}
-                className="text-xs text-rose-400 hover:text-rose-300 transition-colors">
-                {ar ? "حذف الشعار" : "Remove Logo"}
+              <button type="button" onClick={() => setLogo("")}
+                className="mt-2 flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 transition">
+                {ar ? "حذف الصورة" : "Remove photo"}
               </button>
             )}
           </div>
         </div>
-      </div>
+        <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+      </section>
 
-      {/* Background logo */}
-      <div className="card-premium p-5 space-y-4">
+      {/* ── Name & Specialty ── */}
+      <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <User size={15} className="text-indigo-400" />
+          {ar ? "الاسم والتخصص" : "Name & Specialty"}
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>{ar ? "الاسم بالعربي *" : "Arabic name *"}</label>
+            <input value={nameAr} onChange={(e) => handleNameAr(e.target.value)}
+              dir="rtl" className={inputCls} placeholder="د. أحمد محمد" />
+          </div>
+          <div>
+            <label className={labelCls}>{ar ? "الاسم بالإنجليزي" : "English name"}</label>
+            <input value={name} onChange={(e) => setName(e.target.value)}
+              dir="ltr" className={inputCls} placeholder="Dr. Ahmed" />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>{ar ? "التخصص *" : "Specialty *"}</label>
+          <div className="relative">
+            <select value={specialtyId} onChange={(e) => setSpecialtyId(e.target.value)}
+              className={`${inputCls} appearance-none pe-8`}>
+              {specialties.map((s) => (
+                <option key={s.id} value={s.id}>{ar ? s.nameAr : s.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-white/30" />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>{ar ? "نبذة تعريفية (عربي)" : "Bio (Arabic)"}</label>
+          <textarea value={bioAr} onChange={(e) => setBioAr(e.target.value)}
+            rows={2} dir="rtl" className={`${inputCls} resize-none`}
+            placeholder={ar ? "نبذة مختصرة عنك..." : "Brief bio..."} />
+        </div>
+        <div>
+          <label className={labelCls}>{ar ? "نبذة تعريفية (إنجليزي)" : "Bio (English)"}</label>
+          <textarea value={bio} onChange={(e) => setBio(e.target.value)}
+            rows={2} dir="ltr" className={`${inputCls} resize-none`}
+            placeholder="Brief bio in English..." />
+        </div>
+      </section>
+
+      {/* ── Contact ── */}
+      <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Phone size={15} className="text-indigo-400" />
+          {ar ? "معلومات التواصل" : "Contact Info"}
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>{ar ? "رقم الهاتف" : "Phone"}</label>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)}
+              type="tel" dir="ltr" className={inputCls} placeholder="07XXXXXXXXX" />
+          </div>
+          <div>
+            <label className={labelCls}>{ar ? "البريد الإلكتروني" : "Email"}</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)}
+              type="email" dir="ltr" className={inputCls} placeholder="dr@email.com" />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>{ar ? "رقم الترخيص" : "License number"}</label>
+          <input value={license} onChange={(e) => setLicense(e.target.value)}
+            dir="ltr" className={inputCls} placeholder="IQ-MED-12345" />
+        </div>
+      </section>
+
+      {/* ── Experience & Fee ── */}
+      <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Banknote size={15} className="text-indigo-400" />
+          {ar ? "الخبرة والأتعاب" : "Experience & Fees"}
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>{ar ? "سنوات الخبرة" : "Years of experience"}</label>
+            <input value={exp} onChange={(e) => setExp(e.target.value)}
+              type="number" min="0" max="60" className={inputCls} placeholder="10" />
+          </div>
+          <div>
+            <label className={labelCls}>{ar ? "سعر الكشفية (د.ع)" : "Consultation fee (IQD)"}</label>
+            <input value={fee} onChange={(e) => setFee(e.target.value)}
+              type="number" min="0" className={inputCls} placeholder="50000" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Hours ── */}
+      <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Clock size={15} className="text-indigo-400" />
+          {ar ? "ساعات العمل" : "Working Hours"}
+        </h2>
+        <div>
+          <label className={labelCls}>{ar ? "أيام العمل" : "Working days"}</label>
+          <div className="relative">
+            <select value={days} onChange={(e) => setDays(e.target.value)}
+              className={`${inputCls} appearance-none pe-8`}>
+              <option value="">{ar ? "اختر الأيام" : "Choose days"}</option>
+              {WORKING_DAYS.map((d) => (
+                <option key={d.value} value={d.value}>{ar ? d.ar : d.en}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-white/30" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>{ar ? "من" : "From"}</label>
+            <input value={from} onChange={(e) => setFrom(e.target.value)}
+              type="time" className={`${inputCls} [color-scheme:dark]`} />
+          </div>
+          <div>
+            <label className={labelCls}>{ar ? "إلى" : "To"}</label>
+            <input value={to} onChange={(e) => setTo(e.target.value)}
+              type="time" className={`${inputCls} [color-scheme:dark]`} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Location ── */}
+      <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Image className="h-4 w-4 text-violet-400" />
-            {ar ? "عرض الشعار في الخلفية" : "Logo as Background"}
+            <MapPin size={15} className="text-indigo-400" />
+            {ar ? "موقع العيادة على الخريطة" : "Clinic Location on Map"}
           </h2>
-          <label className="relative cursor-pointer">
-            <input type="checkbox" checked={bgEnabled} onChange={e => setBgEnabled(e.target.checked)} className="sr-only peer" />
-            <div className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-indigo-600 transition-colors" />
-            <div className="absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full transition-all peer-checked:translate-x-5" />
-          </label>
+          <button type="button" onClick={() => setShowMap(!showMap)}
+            className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+            {showMap ? (ar ? "إخفاء الخريطة" : "Hide map") : (ar ? "تحديد الموقع" : "Set location")}
+          </button>
         </div>
 
-        {bgEnabled && logo && (
-          <div className="space-y-3">
-            <p className="text-xs text-white/40">{ar ? "اختر أين يظهر الشعار في الخلفية" : "Choose where to show background logo"}</p>
-            {[
-              { key: "onDoctor", label_ar: "لوحة الطبيب", label_en: "Doctor Dashboard", icon: Stethoscope, state: onDoctor, set: setOnDoctor },
-              { key: "onSecretary", label_ar: "واجهة الاستقبال", label_en: "Secretary Screen", icon: ClipboardList, state: onSecretary, set: setOnSecretary },
-              { key: "onWaiting", label_ar: "شاشة الانتظار", label_en: "Waiting Room Screen", icon: Monitor, state: onWaiting, set: setOnWaiting },
-            ].map(({ label_ar, label_en, icon: Icon, state, set }) => (
-              <label key={label_en} className="flex items-center gap-3 cursor-pointer rounded-xl p-3 hover:bg-white/4 transition-colors">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${state ? "bg-indigo-500/20 border border-indigo-500/30" : "bg-white/5 border border-white/8"}`}>
-                  <Icon className={`h-4 w-4 ${state ? "text-indigo-400" : "text-white/30"}`} />
-                </div>
-                <span className="flex-1 text-sm text-slate-300">{ar ? label_ar : label_en}</span>
-                <input type="checkbox" checked={state} onChange={e => set(e.target.checked)} className="sr-only peer" />
-                <div className={`w-8 h-4 rounded-full transition-colors ${state ? "bg-indigo-600" : "bg-white/10"}`}>
-                  <div className={`w-3 h-3 bg-white rounded-full mt-0.5 transition-all ${state ? "translate-x-4" : "translate-x-0.5"}`} />
-                </div>
-              </label>
-            ))}
-
-            {/* Preview */}
-            {logo && (
-              <div className="rounded-xl overflow-hidden border border-white/8 h-24 relative">
-                <img src={logo} alt="preview" className="absolute inset-0 w-full h-full object-cover opacity-10" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="text-xs text-white/40">{ar ? "معاينة" : "Preview"}</p>
-                </div>
-                <img src={logo} alt="logo" className="absolute bottom-2 end-2 h-10 w-10 rounded-xl object-cover border border-white/20" />
-              </div>
-            )}
-          </div>
+        {mapData.address && (
+          <p className="flex items-start gap-2 text-xs text-white/60">
+            <MapPin size={12} className="text-indigo-400 mt-0.5 shrink-0" />
+            {mapData.address}
+          </p>
         )}
-      </div>
 
-      <Button onClick={handleSave} loading={saving} className="w-full gap-2">
-        {saved ? <><Check className="h-4 w-4" />{ar ? "تم الحفظ!" : "Saved!"}</> : (ar ? "حفظ الإعدادات" : "Save Settings")}
-      </Button>
+        {showMap && (
+          <MapPicker
+            lat={mapData.lat}
+            lng={mapData.lng ?? undefined}
+            address={mapData.address}
+            locale={locale}
+            autoLocate={!mapData.lat}
+            onChange={(lat, lng, address) => setMapData({ lat, lng, address })}
+          />
+        )}
+      </section>
+
+      {/* ── Save button ── */}
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 py-3.5 text-sm font-bold text-white shadow-lg hover:opacity-90 disabled:opacity-50 transition"
+      >
+        {saving
+          ? <><Loader2 size={15} className="animate-spin" />{ar ? "جاري الحفظ..." : "Saving..."}</>
+          : saved
+          ? <><Check size={15} />{ar ? "تم الحفظ ✓" : "Saved ✓"}</>
+          : ar ? "حفظ التغييرات" : "Save changes"
+        }
+      </button>
     </div>
   );
 }

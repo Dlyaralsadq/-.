@@ -16,7 +16,7 @@ export default function Header({ locale, userName, onMenuToggle, role="admin", u
   const ar = locale === "ar";
   const other = ar ? "en" : "ar";
   const switchHref = role==="doctor" ? `/${other}/doctor` : role==="secretary" ? `/${other}/secretary` : `/${other}/admin`;
-  const handleLogout = async () => { await logoutAction(); router.push(`/${locale}/login`); };
+  const handleLogout = async () => { await logoutAction(); router.push(`/${locale}`); };
 
   const RoleIcon = role==="doctor" ? Stethoscope : role==="secretary" ? ClipboardList : ShieldCheck;
   const roleLabel = role==="doctor" ? (ar?"طبيب":"Doctor") : role==="secretary" ? (ar?"سكرتير":"Secretary") : (ar?"مدير":"Admin");

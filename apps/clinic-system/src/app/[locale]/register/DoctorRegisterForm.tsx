@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, Phone, Lock, Stethoscope, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import dynamic from "next/dynamic";
+import { User, Phone, Lock, Stethoscope, CheckCircle2, AlertCircle, Eye, EyeOff, MapPin } from "lucide-react";
 import { arabicToEnglish } from "@/lib/transliterate";
 import { registerDoctor } from "@/app/actions/register";
-import { IRAQ_GOVERNORATES } from "@/lib/iraq";
+
+const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), { ssr: false });
 
 interface Specialty { id: string; name: string; nameAr: string; }
 
@@ -25,6 +27,10 @@ export default function DoctorRegisterForm({
   const [showPwd, setShowPwd] = useState(false);
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
+  const [showMap, setShowMap] = useState(false);
+  const [mapData, setMapData] = useState<{ lat: number | null; lng: number | null; address: string }>({
+    lat: null, lng: null, address: ""
+  });
 
   function handleNameAr(v: string) {
     setNameAr(v);
@@ -55,7 +61,9 @@ export default function DoctorRegisterForm({
       password:          pwd,
       phone:             fd.get("phone") as string,
       specialtyId:       fd.get("specialtyId") as string,
-      clinicAddress:     fd.get("address") as string || undefined,
+      clinicAddress:     mapData.address || (fd.get("address") as string) || undefined,
+      clinicLat:         mapData.lat ?? undefined,
+      clinicLng:         mapData.lng ?? undefined,
       consultationFee:   fee ? parseFloat(fee) : undefined,
       workingHoursStart: fd.get("from") as string || undefined,
       workingHoursEnd:   fd.get("to") as string || undefined,
@@ -166,14 +174,39 @@ export default function DoctorRegisterForm({
         </div>
       </div>
 
-      {/* Address */}
+      {/* Location */}
       <div>
-        <label className="block text-xs text-white/40 mb-1.5">{ar ? "عنوان العيادة" : "Clinic address"}</label>
-        <input
-          name="address"
-          placeholder={ar ? "بغداد — الكرادة — شارع ..." : "Baghdad — Karrada — ..."}
-          className="w-full rounded-xl border border-white/10 bg-[#0c1121] px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
-        />
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs text-white/40">{ar ? "موقع العيادة على الخريطة" : "Clinic location on map"}</label>
+          <button type="button" onClick={() => setShowMap(!showMap)}
+            className="text-xs text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1">
+            <MapPin size={11} />
+            {showMap ? (ar ? "إخفاء" : "Hide") : (ar ? "تحديد الموقع" : "Set location")}
+          </button>
+        </div>
+        {mapData.address && (
+          <p className="text-xs text-white/50 mb-2 flex items-center gap-1">
+            <MapPin size={10} className="text-indigo-400 shrink-0" />
+            {mapData.address.slice(0, 80)}{mapData.address.length > 80 ? "..." : ""}
+          </p>
+        )}
+        {showMap && (
+          <MapPicker
+            lat={mapData.lat}
+            lng={mapData.lng ?? undefined}
+            address={mapData.address}
+            locale={locale}
+            autoLocate={!mapData.lat}
+            onChange={(lat, lng, address) => setMapData({ lat, lng, address })}
+          />
+        )}
+        {!showMap && (
+          <input
+            name="address"
+            placeholder={ar ? "بغداد — الكرادة — شارع ..." : "Baghdad — Karrada — ..."}
+            className="w-full rounded-xl border border-white/10 bg-[#0c1121] px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
+          />
+        )}
       </div>
 
       {/* Fee + Hours */}

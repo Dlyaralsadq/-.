@@ -111,17 +111,6 @@ export default async function LocaleRootPage({
           </Link>
         </div>
 
-        {/* Register link */}
-        <p className="text-center text-xs text-white/30 mt-2 mb-6">
-          {ar ? "طبيب جديد؟ " : "New doctor? "}
-          <Link
-            href={`/${locale}/register`}
-            className="text-indigo-400 hover:underline font-semibold"
-          >
-            {ar ? "سجّل حسابك مجاناً ←" : "→ Create your free account"}
-          </Link>
-        </p>
-
         {/* Language switcher */}
         <div className="mt-8 flex justify-center gap-3">
           <Link

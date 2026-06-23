@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import LoginForm from "./LoginForm";
 
 export default async function LoginPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -50,7 +51,14 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
           <LoginForm locale={locale} />
         </div>
 
-        <p className="text-center text-xs text-white/15 mt-8">
+        <p className="text-center text-xs text-white/40 mt-6">
+          {ar ? "طبيب جديد؟ " : "New doctor? "}
+          <Link href={`/${locale}/register`} className="text-indigo-400 hover:underline font-semibold">
+            {ar ? "سجّل حسابك مجاناً" : "Create your free account"}
+          </Link>
+        </p>
+
+        <p className="text-center text-xs text-white/15 mt-4">
           &copy; 2026 ClinicPro · {ar ? "جميع الحقوق محفوظة" : "All rights reserved"}
         </p>
       </div>

@@ -15,7 +15,8 @@ export async function registerDoctor(data: {
   phone: string;
   specialtyId: string;
   clinicAddress?: string;
-  governorate?: string;
+  clinicLat?: number;
+  clinicLng?: number;
   consultationFee?: number;
   workingHoursStart?: string;
   workingHoursEnd?: string;
@@ -53,6 +54,8 @@ export async function registerDoctor(data: {
         phone: data.phone,
         specialtyId: data.specialtyId,
         clinicAddress: data.clinicAddress,
+        clinicLat: data.clinicLat,
+        clinicLng: data.clinicLng,
         consultationFee: data.consultationFee,
         workingHoursStart: data.workingHoursStart,
         workingHoursEnd: data.workingHoursEnd,
